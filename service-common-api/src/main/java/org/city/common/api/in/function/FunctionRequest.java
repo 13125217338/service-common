@@ -13,5 +13,5 @@ public interface FunctionRequest<S, R> {
 	 * @param s 入参
 	 * @return 执行结果
 	 */
-	R apply(S s) throws Exception;
+	R apply(S s) throws Throwable;
 }

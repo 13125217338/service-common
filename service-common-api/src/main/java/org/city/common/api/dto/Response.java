@@ -14,11 +14,11 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class Response {
-	/*标识码*/
+	/* 标识码 */
 	private int code = HttpStatus.OK.value();
-	/*数据*/
+	/* 数据 */
 	private Object data;
-	/*消息*/
+	/* 消息 */
 	private String msg = HttpStatus.OK.getReasonPhrase();
 	
 	/**

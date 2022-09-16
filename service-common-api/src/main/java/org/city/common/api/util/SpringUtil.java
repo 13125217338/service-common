@@ -1,50 +1,133 @@
 package org.city.common.api.util;
 
-import org.springframework.beans.BeansException;
+import java.util.TimeZone;
+
+import org.city.common.api.in.parse.FirstCharParse;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.stereotype.Component;
+import org.springframework.core.env.Environment;
+
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.ParserConfig;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * @作者 ZHouYU
- * @日期 2022-07-13
+ * @作者 ChengShi
+ * @日期 2022-09-16 15:18:11
  * @版本 1.0
  * @描述 Spring工具
  */
-@Component
-public class SpringUtil implements ApplicationContextAware {
-    private static ApplicationContext applicationContext;
+@Slf4j
+public final class SpringUtil implements FirstCharParse {
+	private static ApplicationContext applicationContext;
+	private static String appName;
+	private final static SpringUtil SPRING_UTIL = new SpringUtil();
+	private SpringUtil() {}
+	
+	/**
+	 * @描述 初始化工具（只能执行一次）
+	 * @param applicationContext 应用上下文
+	 */
+	public synchronized static void init(ApplicationContext applicationContext) {
+		if (SpringUtil.applicationContext == null) {
+			SpringUtil.applicationContext = applicationContext;
+			SpringUtil.appName = getEnvironment().getProperty("spring.application.name");
+			setFastJsonTimeZone(getEnvironment()); //设置FastJson时区等
+		}
+	}
+	/* 设置FastJson时区等 */
+	private static void setFastJsonTimeZone(Environment environment) {
+		String timeZone = environment.getProperty("spring.datasource.url", "jdbc?characterEncoding=utf-8");
+		/* 设置FastJson时区 */
+		String timezoneId = TimeZone.getDefault().getID();
+		try {
+			String[] params = timeZone.split("[?]")[1].split("[&]");
+			for (String param : params) {
+				if (param.contains("serverTimezone")) {
+					timezoneId = param.split("=")[1].trim(); break;
+				}
+			}
+		} catch (Exception e) {log.error("自定义设置FastJson时区失败！", e);}
+		/* 全局配置FastJson */
+		JSONObject.defaultTimeZone = TimeZone.getTimeZone(timezoneId);
+		ParserConfig.getGlobalInstance().setAutoTypeSupport(true);
+	}
+	
+	/**
+	 * @描述 获取应用名称
+	 * @return 应用名称
+	 */
+	public static String getAppName() {return SpringUtil.appName;}
 
-    @Override
-    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        if(SpringUtil.applicationContext == null) {
-            SpringUtil.applicationContext = applicationContext;
-        }
-
-        System.out.println("---------------me.shijunjie.util.SpringUtil------------------------------------------------------");
-
-        System.out.println("========ApplicationContext配置成功,在普通类可以通过调用SpringUtils.getAppContext()获取applicationContext对象,applicationContext="+SpringUtil.applicationContext+"========");
-
-        System.out.println("---------------------------------------------------------------------");
-    }
-
-    //获取applicationContext
+    /**
+     * @描述 获取应用上下文
+     * @return 应用上下文
+     */
     public static ApplicationContext getApplicationContext() {
         return applicationContext;
     }
+    
+    /**
+     * @描述 获取环境信息
+     * @return 环境信息
+     */
+    public static Environment getEnvironment() {
+    	return applicationContext.getEnvironment();
+    }
 
-    //通过name获取 Bean.
+    /**
+     * @描述 通过name获取Bean
+     * @param name 名称
+     * @return Bean
+     */
     public static Object getBean(String name){
-        return getApplicationContext().getBean(name);
+        return applicationContext.getBean(name);
+    }
+    
+    /**
+     * @描述 通过名称加类型获取
+     * @param <T> 对应对象
+     * @param name 名称
+     * @param cls 类型
+     * @return Bean
+     */
+    public static <T> T getBean(String name, Class<T> cls) {
+    	return applicationContext.getBean(name, cls);
     }
 
-    //通过class获取Bean.
-    public static <T> T getBean(Class<T> clazz){
-        return getApplicationContext().getBean(clazz);
+    /**
+     * @描述 通过class获取Bean
+     * @param <T> 对应对象
+     * @param cls 对应类（优先精简类名查找）
+     * @return 对应Bean
+     */
+    public static <T> T getBean(Class<T> cls){
+    	String lowerName = SPRING_UTIL.parseLower(cls);
+    	return applicationContext.containsBean(lowerName) ? getBean(lowerName, cls) : applicationContext.getBean(cls);
     }
-
-    //通过name,以及Clazz返回指定的Bean
-    public static <T> T getBean(String name,Class<T> clazz){
-        return getApplicationContext().getBean(name, clazz);
+    
+    /**
+     * @描述 通过类型获取多个实现Bean名称
+     * @param cls 类型
+     * @return 多个实现Bean名称
+     */
+    public static String[] getBeanNames(Class<?> cls) {
+    	return applicationContext.getBeanNamesForType(cls);
+    }
+    
+    /**
+     * @描述 只获取一个BeanName
+     * @param cls 类型
+     * @return 一个BeanName
+     */
+    public static String getBeanName(Class<?> cls) {
+    	String[] beanNames = getBeanNames(cls);
+    	if (beanNames == null || beanNames.length == 0) {
+			throw new NullPointerException(String.format("通过[%s]类并未找到名称！", cls.getName()));
+		}
+    	if (beanNames.length > 1) {
+			throw new IndexOutOfBoundsException(String.format("通过[%s]类找到多个[%d]名称！", cls.getName(), beanNames.length));
+		}
+    	return beanNames[0];
     }
 }

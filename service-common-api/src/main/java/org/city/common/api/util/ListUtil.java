@@ -7,7 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.city.common.api.dto.Condition.Param;
+import org.city.common.api.dto.sql.Condition.Param;
 import org.springframework.util.CollectionUtils;
 
 /**
@@ -21,28 +21,29 @@ public final class ListUtil {
 	
 	/**
 	* @用途 手动提取集合第几页范围数据，实现分页
+	* @param <T> 数据类型
 	* @param lstData 需要分页的集合对象
-	* @param pageNo 页码，从1开始
+	* @param pageNum 页码，从1开始
 	* @param pageSize 分页大小
 	* @return 分页后的数据集合
-	*/
-	public static <T> List<T> getPageListData(List<T> lstData, Integer pageNo, Integer pageSize){
-		if (!MyUtil.isNotBlank(lstData) || pageNo == null || pageSize == null) {return lstData;}
-		int curPage = pageNo - 1;
+	 */
+	public static <T> List<T> getPageListData(List<T> lstData, Integer pageNum, Integer pageSize){
+		if (CollectionUtils.isEmpty(lstData) || pageNum == null || pageSize == null) {return lstData;}
+		int curPage = pageNum - 1;
 		int total = lstData.size();
-		/*计算开始下标*/
+		/* 计算开始下标 */
 		int startIndex = curPage * pageSize;
 		if (startIndex > total) {startIndex = total;}
-		/*计算总迭代数*/
+		/* 计算总迭代数 */
 		int endIndex = startIndex + pageSize;
 		if (endIndex > total) {endIndex = total;}
-		/*迭代添加*/
+		/* 迭代添加 */
 		return new ArrayList<T>(lstData.subList(startIndex, endIndex));
 	}
 	
 	/**
 	 * @描述 内存查询
-	 * @param <T> 与入参类型一致
+	 * @param <T> 数据类型
 	 * @param datas 返回查询的数据
 	 * @param param 查询条件
 	 * @return 查询结果
@@ -145,7 +146,7 @@ public final class ListUtil {
 		}
 	}
 	
-	/*对比值*/
+	/* 对比值 */
 	private static int compare(Object o1, Object o2){
 		NumberFormat format = NumberFormat.getInstance();
 		try {o1 = format.format(o1);} catch (Exception e) {}
@@ -157,7 +158,7 @@ public final class ListUtil {
 			}
 			return ((Double)((Number)o1).doubleValue()).compareTo(((Number)o2).doubleValue());
 		}
-		/*对象对比*/
+		/* 对象对比 */
 		if (o1 == null) {return o2 == null ? 0 : -1;}
 		else{
 			if (o2 == null) {return 1;}

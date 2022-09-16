@@ -1,14 +1,19 @@
 package org.city.common.api.constant;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 /**
  * @作者 ChengShi
  * @日期 2022年8月3日
  * @版本 1.0
  * @描述 条件函数
  */
+@Getter
+@AllArgsConstructor
 public enum MathSql {
 	/* 正常 */
-	Nomal("any_value(%s)", 0),
+	Normal("any_value(%s)", 0),
 	/* 求最大 */
 	Max("max(%s)", 0),
 	/* 求最小 */
@@ -33,17 +38,24 @@ public enum MathSql {
 	DateFormat("date_format(%s, '%s')", 1),
 	/* 如果为NULL判断 */
 	IfNull("ifnull(%s, %s)", 1),
-	/* 自定义Sql - 指定字段名作为别名，第一个值作为替换，别名Dto对象中有就行 */
+	/* 自定义Sql - 使用sqlFormat方法处理该函数 */
 	Sql("%s", 0);
 	
-	private final String val;
-	private final int size;
-	private MathSql(String val, int size) {this.val = val; this.size = size;}
+	private final String val; //对应函数
+	private final int size; //函数值个数
 	
+	/**
+	 * @描述 自定义Sql格式化函数值
+	 * @param val 第一个函数值
+	 * @return 格式化后的函数值
+	 */
+	public String sqlFormat(String val) {
+		return String.format(this.val, val);
+	}
 	/**
 	 * @描述 格式化函数值
 	 * @param tableField 原表字段名
-	 * @param vals 如果函数有需要填的值
+	 * @param vals 参数值个数与函数值个数一致
 	 * @return 格式化后的函数值
 	 */
 	public String format(String tableField, String...vals) {

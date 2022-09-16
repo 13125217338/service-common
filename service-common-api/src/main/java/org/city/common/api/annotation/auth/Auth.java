@@ -17,11 +17,11 @@ import java.lang.annotation.Target;
 @Documented
 public @interface Auth {
 	/**
-	 * @描述 验证回调对应@AuthImpl中的id值（支持${key}取配置值）
+	 * @描述 验证回调对应@AuthFilter中的id值
 	 */
 	public String id();
 	/**
-	 * @描述 自定义参数（支持${key}取配置值与#{key}取方法入参）
+	 * @描述 自定义参数（支持${key}取配置值与#{key}取方法入参与&{method}取执行方法返回值）
 	 */
 	public String[] values() default {};
 }

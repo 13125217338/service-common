@@ -11,7 +11,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
@@ -20,11 +19,14 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+
+import org.springframework.util.StringUtils;
 
 
 /**
@@ -48,48 +50,6 @@ public final class MyUtil {
 	public final static byte IMG_ZOOM_EQUAL = 3;
 	
 	/**
-	 * @描述 判断集合不为空或空集合
-	 * @param vals 被判断的集合
-	 * @return 为NULL或者长度为0则为false
-	 */
-	public static <T> boolean isNotBlank(Collection<T> vals){
-		return !(vals == null || vals.size() == 0);
-	}
-	
-	/**
-	 * @描述 判断对象不为NULL或空字符或集合map与数组长度为0
-	 * @param obj 被判断的对象
-	 * @return 对象为NULL或空字符串或集合map与数组长度为0则返回false
-	 */
-	public static boolean isNotBlank(Object obj){
-		if (obj == null || obj.toString().length() == 0) {return false;}
-		else{
-			if (obj.getClass().isArray()) {if (Array.getLength(obj) == 0) {return false;}}
-			else if(obj instanceof Collection) {return isNotBlank((Collection<?>) obj);}
-			else if(obj instanceof Map) {return isNotBlank((Map<?, ?>) obj);}
-			return true;
-		}
-	}
-	
-	/**
-	 * @描述 判断字符串不为空
-	 * @param str 被判断的字符串
-	 * @return 字符串为NULL或长度为0都是空
-	 */
-	public static boolean isNotBlank(String str) {
-		return !(str == null || str.toString().length() == 0);
-	}
-	
-	/**
-	 * @描述 判断map不为空或空map
-	 * @param vals 被判断的map
-	 * @return 为NULL或者长度为0则为false
-	 */
-	public static <K, V> boolean isNotBlank(Map<K, V> vals){
-		return !(vals == null || vals.size() == 0);
-	}
-	
-	/**
 	 * @描述 获取原字符串在索引字符串出现过多少次
 	 * @param val 原字符
 	 * @param index 索引字符
@@ -97,9 +57,9 @@ public final class MyUtil {
 	 */
 	public static int indexSum(String val, String index){
 		int sum = 0;
-		if (isNotBlank(val) && isNotBlank(index)) {
+		if (StringUtils.hasText(val) && StringUtils.hasText(index)) {
 			int cur = 0;
-			while((cur = val.indexOf(index, cur)) != -1){cur += index.length();sum++;}
+			while((cur = val.indexOf(index, cur)) != -1){cur += index.length(); sum++;}
 		}
 		return sum;
 	}
@@ -113,7 +73,7 @@ public final class MyUtil {
 	 */
 	public static Map<String, String> getContainValue(String start, String end, String value){
 		Map<String, String> vals = new LinkedHashMap<String, String>();
-		if (MyUtil.isNotBlank(start) && MyUtil.isNotBlank(end) && MyUtil.isNotBlank(value)) {
+		if (StringUtils.hasText(start) && StringUtils.hasText(end) && StringUtils.hasText(value)) {
 			int index = 0;
 			while((index = value.indexOf(start, index)) != -1){
 				int indexOf = value.indexOf(end, index + start.length());
@@ -130,7 +90,6 @@ public final class MyUtil {
 	 * @param inputStream 输入流（要有read(byte[] bs)方法）
 	 * @param bufferSize 单次读写大小
 	 * @return 字节数组（不会为NULL）
-	 * @throws IOException
 	 */
 	public static byte[] getBytes(InputStream inputStream, int bufferSize) throws IOException{
 		ByteArrayOutputStream byteOutputStream = new ByteArrayOutputStream(bufferSize);
@@ -150,19 +109,18 @@ public final class MyUtil {
 	 * @param imgZoom 缩放方式（用该类的字段）
 	 * @param imgType 图片类型（如：JPEG）
 	 * @return 缩放后的图片字节（可能宽高只等于其中设置的一个）
-	 * @throws IOException
 	 */
 	public static byte[] imgZoom(InputStream inputStream, int width, int height, byte imgZoom, String imgType) throws IOException{
-		/*原图*/
+		/* 原图 */
 		BufferedImage bufferedImage = ImageIO.read(inputStream);
 		int realWidth = bufferedImage.getWidth();
 		if (imgZoom == IMG_ZOOM_EQUAL) {realWidth = width;}
 		else{
-			/*缩小或放大宽*/
+			/* 缩小或放大宽 */
 			double widthZoom = (double)bufferedImage.getWidth() / bufferedImage.getHeight();
 			int curHeight = bufferedImage.getHeight() - height;
 			if (curHeight != 0) {realWidth = curHeight > 0 ? (bufferedImage.getWidth() - (int) (curHeight * widthZoom)) : (bufferedImage.getWidth() + (int) (-curHeight * widthZoom));}
-			/*缩小或放大高*/
+			/* 缩小或放大高 */
 			double heightZoom = (double)bufferedImage.getHeight() / bufferedImage.getWidth();
 			int curWidth = realWidth - width;
 			if (imgZoom == IMG_ZOOM_RATIO_IN) {
@@ -177,9 +135,9 @@ public final class MyUtil {
 				}
 			}
 		}
-		/*获取缩放实例图*/
+		/* 获取缩放实例图 */
 		Image scaledInstance = bufferedImage.getScaledInstance(realWidth, height, Image.SCALE_SMOOTH);
-		/*待画的图*/
+		/* 待画的图 */
 		BufferedImage dataImg = new BufferedImage(realWidth, height, BufferedImage.TYPE_INT_RGB);
 		Graphics graphics = dataImg.getGraphics();
 		graphics.drawImage(scaledInstance, 0, 0, null);
@@ -200,13 +158,26 @@ public final class MyUtil {
 		String reString = replaceStr + replaceStr;
 		return replaceStr(value, replaceStr, reString);
 	}
-	/*递归替换*/
+	/* 递归替换 */
 	private static String replaceStr(String value, String replaceStr, String reString) {
 		if (value.contains(reString)) {
 			value = value.replace(reString, replaceStr);
 			value = replaceStr(value, replaceStr, reString);
 		}
 		return value;
+	}
+	
+	/**
+	 * @描述 获取数据中所有为NULL的字段名
+	 * @param data 待获取数据
+	 * @return 为NULL的字段名
+	 */
+	public static String[] getNullName(Object data) {
+		if (data == null) {return new String[0];}
+		Set<String> collect = FieldUtil.getAllDeclaredField(data.getClass()).stream().filter(v -> {
+			try {return v.get(data) == null;} catch (Exception e) {return false;}
+		}).map(v -> v.getName()).collect(Collectors.toSet());
+		return collect.toArray(new String[collect.size()]);
 	}
 	
 	/**
@@ -236,7 +207,6 @@ public final class MyUtil {
 	 * @param inDir 输入文件夹
 	 * @param outDir 输出文件夹
 	 * @param notEndWidth 不拷贝包含此后缀的文件
-	 * @throws Exception
 	 */
 	public static void copyDir(String inDir, String outDir, String...notEndWidth) throws Exception{
 		if (inDir == null || outDir == null) {return;}
@@ -266,7 +236,6 @@ public final class MyUtil {
 	 * @描述 拷贝文件
 	 * @param inFilePathName 输入文件地址与名称
 	 * @param outFilePathName 输出文件地址与名称
-	 * @throws Exception
 	 */
 	public static void copyFile(String inFilePathName, String outFilePathName) throws Exception{
 		if (inFilePathName == null || outFilePathName == null) {return;}
@@ -274,7 +243,7 @@ public final class MyUtil {
 		File outFile = new File(outFilePathName);
 		if (!inFile.exists() || inFile.isDirectory()) {throw new FileNotFoundException("输入的文件不存在或者非文件！");}
 		if (!outFile.getParentFile().exists()) {outFile.getParentFile().mkdirs();}
-		/*零拷贝*/
+		/* 零拷贝 */
 		try(FileInputStream inputStream = new FileInputStream(inFile);FileOutputStream outputStream = new FileOutputStream(outFile)){
 			inputStream.getChannel().transferTo(0, inFile.length(), outputStream.getChannel());
 		}
@@ -285,7 +254,6 @@ public final class MyUtil {
 	 * @param annotation 注解对象
 	 * @param fieldName 字段
 	 * @param value 值
-	 * @throws Exception 
 	 */
 	@SuppressWarnings("all")
 	public static void setAnnotationValue(Annotation annotation, String fieldName, Object value) throws Exception {
@@ -299,7 +267,7 @@ public final class MyUtil {
 		} catch (Exception e) {throw new Exception("重新设置注解值出错！Msg：" + e.getMessage());}
 	}
 	
-	/*获取注解所有值*/
+	/* 获取注解所有值 */
 	@SuppressWarnings("all")
 	public static Map<String, Object> getAnnotationVal(Annotation att) {
 		try {
@@ -316,7 +284,6 @@ public final class MyUtil {
 	 * @描述 获取地址端口信息
 	 * @param port 端口
 	 * @return 地址端口信息
-	 * @throws UnknownHostException
 	 */
 	public static String getIpPort(int port) throws UnknownHostException {
 		return InetAddress.getLocalHost().getHostAddress() + ":" + port;
@@ -337,7 +304,7 @@ public final class MyUtil {
 		
 		/* 加密 */
 		String md5code = new BigInteger(1, md.digest(val.getBytes())).toString(16);
-        for (int i = 0; i < 32 - md5code.length(); i++) {
+        for (int i = 0, j = 32 - md5code.length(); i < j; i++) {
             md5code = ZERO + md5code;
         }
 		return md5code;

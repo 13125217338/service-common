@@ -13,7 +13,7 @@ import lombok.Setter;
  */
 @Setter
 @Getter
-public class TimeEntity extends BaseEntity{
+public class TimeEntity extends BaseEntity {
 	/** 创建时间 */
 	@Column(value = "NOW()")
 	private String createTime;

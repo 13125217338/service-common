@@ -2,12 +2,17 @@ package org.city.common.api.util;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.city.common.api.annotation.plug.Format;
 import org.city.common.api.in.FormatFieldValue;
-import org.springframework.util.CollectionUtils;
+import org.city.common.api.in.parse.JSONParser;
+import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
@@ -18,14 +23,17 @@ import org.springframework.util.MultiValueMap;
  * @描述 自定义格式化字段值工具
  */
 public final class FormatUtil {
+	private final static JSONParser PARSER = new JSONParser() {};
 	private FormatUtil() {}
 	
 	/**
-	 * @描述 格式化对象上字段值（与注解@Format配套使用）
-	 * @param param 待格式化对象
+	 * @描述 格式化对象上的字段值（与注解@Format配套使用）
+	 * @param param 待格式化对象（支持集合与Map）
 	 */
 	public static void format(Object param) {
-		if (param == null) {return;}
+		if (param == null || PARSER.isBaseType(param.getClass())) {return;}
+		if (param instanceof Collection) {format((Collection<?>) param); return;}
+		if (param instanceof Map) {format((Map<?, ?>) param); return;}
 		
 		/* 获取所有字段解析 */
 		List<Field> allDeclaredField = FieldUtil.getAllDeclaredField(param.getClass());
@@ -34,24 +42,59 @@ public final class FormatUtil {
 			if (format != null && format.format() != FormatFieldValue.class) {
 				/* 获取实现类 */
 				FormatFieldValue bean = SpringUtil.getBean(format.format());
-				if (bean == null) {throw new NullPointerException(String.format("实现类[%s]未交给Spring管理！", format.format().getName()));}
+				Assert.notNull(bean, String.format("实现类[%s]未交给Spring管理！", format.format().getName()));
 				
 				/* 解析并设置新值 */
-				try {field.set(param,  bean.format(field, field.get(param), format.fixVal()));}
+				try {field.set(param, bean.format(field, field.get(param), format.type())); continue;}
 				catch (Exception e) {throw new RuntimeException("自定义格式化字段值错误！", e);}
 			}
+			/* 无格式化注解 - 且为特定类型 */
+			try {format(field.get(param));} catch (Exception e) {throw new RuntimeException("自定义格式化特定类型错误！", e);}
+		}
+	}
+	/* 格式化集合每个对象上的字段值 */
+	private static void format(Collection<?> params) {
+		for (Object param : params) {format(param);} //解析每个对象
+	}
+	/* 格式化Map每个对象上的字段值 */
+	private static void format(Map<?, ?> params) {
+		for (Entry<?, ?> param : params.entrySet()) { //解析每个对象
+			if (param.getKey() instanceof Collection) {format((Collection<?>) param.getKey());}
+			else {format(param.getKey());} //格式化key
+			
+			if (param.getValue() instanceof Collection) {format((Collection<?>) param.getValue());}
+			else {format(param.getValue());} //格式化value
 		}
 	}
 	
 	/**
-	 * @描述 格式化集合每个对象上字段值（与注解@Format配套使用）
-	 * @param params 待格式化集合对象
+	 * @描述 获取Rest地址拼接数据
+	 * @param url 原地址参数
+	 * @param data 待拼接格式化数据
+	 * @param charset Url的编码格式
+	 * @return Rest地址拼接数据
 	 */
-	public static void format(Collection<?> params) {
-		if (CollectionUtils.isEmpty(params)) {return;}
+	@SuppressWarnings("unchecked")
+	public static String getUrlSetValue(String url, Object data, Charset charset) {
+		if (data == null) {return url;}
 		
-		/* 解析每个对象 */
-		for (Object param : params) {format(param);}
+		StringBuilder sb = new StringBuilder();
+		/* Map直接添加 */
+		if (data instanceof Map) {
+			for (Entry<String, ?> entry : ((Map<String, ?>) data).entrySet()) {
+				Object dt = entry.getValue();
+				if (dt != null) {sb.append(String.format("&%s=%s", entry.getKey(), URLEncoder.encode(String.valueOf(dt), charset)));}
+			}
+		} else {
+			try {
+				List<Field> declaredField = FieldUtil.getAllDeclaredField(data.getClass());
+				for (Field field : declaredField) {
+					Object dt = field.get(data);
+					if (dt != null) {sb.append(String.format("&%s=%s", field.getName(), URLEncoder.encode(String.valueOf(dt), charset)));}
+				}
+			} catch (Exception e) {throw new RuntimeException(e);}
+		}
+		return sb.length() > 0 ? url + "?" + sb.substring(1) : url;
 	}
 	
 	/**
@@ -59,29 +102,37 @@ public final class FormatUtil {
 	 * @param data 对象
 	 * @return 多媒体数据
 	 */
+	@SuppressWarnings("unchecked")
 	public static MultiValueMap<String, Object> getMutiValueMap(Object data) {
 		MultiValueMap<String, Object> value = new LinkedMultiValueMap<>();
 		if (data == null) {return value;}
 		
-		try {
-			List<Field> declaredField = FieldUtil.getAllDeclaredField(data.getClass());
-			for (Field field : declaredField) {
-				Object dt = field.get(data);
-				/* 集合添加 */
-				if (dt instanceof Collection) {
-					for (Object d : (Collection<?>) dt) {
-						value.add(field.getName(), d);
-					}
-				/* 数组添加 */
-				} else if(dt.getClass().isArray()) {
-					int length = Array.getLength(dt);
-					for (int i = 0; i < length; i++) {
-						value.add(field.getName(), Array.get(dt, i));
-					}
-				/* 对象添加 */
-				} else {value.add(field.getName(), dt);}
+		/* Map直接添加 */
+		if (data instanceof Map) {
+			for (Entry<String, ?> v : ((Map<String, ?>) data).entrySet()) {
+				value.add(v.getKey(), v.getValue());
 			}
-			return value;
-		} catch (Exception e) {throw new RuntimeException(e);}
+		} else {
+			try {
+				List<Field> declaredField = FieldUtil.getAllDeclaredField(data.getClass());
+				for (Field field : declaredField) {
+					Object dt = field.get(data);
+					/* 集合添加 */
+					if (dt instanceof Collection) {
+						for (Object d : (Collection<?>) dt) {
+							value.add(field.getName(), d);
+						}
+					/* 数组添加 */
+					} else if(dt.getClass().isArray()) {
+						int length = Array.getLength(dt);
+						for (int i = 0; i < length; i++) {
+							value.add(field.getName(), Array.get(dt, i));
+						}
+					/* 对象添加 */
+					} else {value.add(field.getName(), dt);}
+				}
+			} catch (Exception e) {throw new RuntimeException(e);}
+		}
+		return value;
 	}
 }

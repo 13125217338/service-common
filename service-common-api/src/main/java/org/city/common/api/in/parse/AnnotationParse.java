@@ -52,7 +52,7 @@ public interface AnnotationParse {
 	 * @版本 1.0
 	 * @描述 代理类
 	 */
-	public static class Proxy implements InvocationHandler,JSONParser{
+	public static class Proxy implements InvocationHandler,JSONParser {
 		private final Map<String, Object> annotationData;
 		public Proxy(Map<String, Object> annotationData) {this.annotationData = annotationData;}
 
@@ -60,6 +60,5 @@ public interface AnnotationParse {
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			return parse(annotationData.get(method.getName()), method.getGenericReturnType());
 		}
-		
 	}
 }

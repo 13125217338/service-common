@@ -1,7 +1,7 @@
 package org.city.common.api.in.sql;
 
-import org.city.common.api.dto.BaseDto;
-import org.city.common.api.dto.Condition;
+import org.city.common.api.dto.sql.BaseDto;
+import org.city.common.api.dto.sql.Condition;
 
 /**
  * @作者 ChengShi

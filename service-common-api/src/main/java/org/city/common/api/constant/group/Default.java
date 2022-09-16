@@ -6,7 +6,7 @@ package org.city.common.api.constant.group;
  * @版本 1.0
  * @描述 默认组
  */
-public interface Default extends javax.validation.groups.Default{
+public interface Default {
 	/** 默认条件 */
 	public final static int VALUE = Integer.MIN_VALUE;
 	/** 相等条件 */
