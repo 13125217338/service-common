@@ -1,6 +1,6 @@
 package org.city.common.api.in.sql;
 
-import org.city.common.api.dto.BaseDto;
+import org.city.common.api.dto.sql.BaseDto;
 
 /**
  * @作者 ChengShi

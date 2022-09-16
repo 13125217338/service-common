@@ -1,8 +1,13 @@
 package org.city.common.core.config;
 
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.city.common.api.dto.remote.RemoteConfigDto;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -13,11 +18,20 @@ import org.springframework.web.client.RestTemplate;
  */
 @Configuration
 public class RestTemplateConfig {
+	@Autowired
+	private RemoteConfigDto remoteConfigDto;
+	
 	@Bean
-    public RestTemplate restTemplate(RestTemplateBuilder builder, MvcConfig mvcConfig) {
-		RestTemplate restTemplate = builder.build();
+    public RestTemplate restTemplate(MvcConfig mvcConfig) {
 		/* 配置数据解析 */
-        mvcConfig.setConverter(restTemplate.getMessageConverters());
+		List<HttpMessageConverter<?>> messageConverters = new ArrayList<>();
+		mvcConfig.setConverter(messageConverters);
+		RestTemplate restTemplate = new RestTemplate(messageConverters);
+		/* 链接请求工厂 */
+		SSLConfig sslConfig = new SSLConfig();
+		sslConfig.setConnectTimeout(remoteConfigDto.getConnectTimeout());
+		sslConfig.setReadTimeout(remoteConfigDto.getReadTimeout());
+		restTemplate.setRequestFactory(sslConfig);
         return restTemplate;
     }
 }
