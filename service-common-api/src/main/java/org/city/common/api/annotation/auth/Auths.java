@@ -6,8 +6,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.city.common.api.constant.AuthContidionType;
-
 /**
  * @作者 ChengShi
  * @日期 2022-06-20 15:05:01
@@ -19,11 +17,7 @@ import org.city.common.api.constant.AuthContidionType;
 @Documented
 public @interface Auths {
 	/**
-	 * @描述 多个验证条件
+	 * @描述 多个验证提供者
 	 */
-	public AuthContidionType type() default AuthContidionType.AND;
-	/**
-	 * @描述 验证
-	 */
-	public Auth[] auths();
+	public Auth[] value();
 }
