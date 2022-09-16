@@ -10,7 +10,7 @@ import java.lang.annotation.Target;
  * @作者 ChengShi
  * @日期 2022-06-22 10:12:42
  * @版本 1.0
- * @描述 列申明（只对Entity字段有效）
+ * @描述 列申明（只对[Entity]字段有效）
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)

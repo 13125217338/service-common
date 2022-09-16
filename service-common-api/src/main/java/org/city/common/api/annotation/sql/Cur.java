@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
 @Documented
 public @interface Cur {
 	/**
-	 * @描述 指明当前表（默认当前执行表）
+	 * @描述 指明当前表
 	 */
 	public Class<?> service();
 	/**

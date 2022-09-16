@@ -6,8 +6,10 @@ package org.city.common.api.exception;
  * @版本 1.0
  * @描述 验证不通过异常（通过继承该类实现自定义验证错误异常）
  */
-public abstract class AuthNotPassException extends RuntimeException{
+public class AuthNotPassException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 	
 	public AuthNotPassException(String msg) {super(msg);}
+	public AuthNotPassException(Throwable e) {super(e);}
+	public AuthNotPassException(String msg, Throwable e) {super(msg, e);}
 }

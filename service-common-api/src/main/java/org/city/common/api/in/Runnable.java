@@ -8,8 +8,7 @@ package org.city.common.api.in;
  */
 public interface Runnable {
 	/**
-	 * @描述 带抛出异常
-	 * @throws Exception
+	 * @描述 带抛出异常的回调
 	 */
-	public void run() throws Exception;
+	public void run() throws Throwable;
 }

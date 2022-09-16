@@ -1,17 +1,13 @@
 package org.city.common.core.controller;
 
-import java.lang.reflect.ParameterizedType;
-import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
 import org.city.common.api.dto.Response;
-import org.city.common.api.in.TypeBean;
-import org.city.common.api.in.function.FunctionRequest;
 import org.city.common.api.in.function.FunctionRequestVoid;
-import org.city.common.api.in.function.FunctionRequestVoidExt;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.city.common.api.in.parse.TypeParse;
+import org.city.common.api.util.SpringUtil;
 
 /**
  * @作者 ChengShi
@@ -19,157 +15,80 @@ import org.springframework.beans.factory.annotation.Autowired;
  * @版本 1.0
  * @描述 公共控制方法
  */
-public abstract class AbstractController<S> implements TypeBean{
-	@Autowired
-	private List<S> services;
+public abstract class AbstractController<S> implements TypeParse {
 	/* 当前服务对象 */
-	private S service;
+	protected S service;
 	@PostConstruct
-	private void init() {service = getBean(services, getCurClass());}
+	private void init() {service = SpringUtil.getBean(getCurClass());}
 	/* 获取当前类 */
-	private Class<?> getCurClass() {
-		Class<?> superclass = this.getClass().getSuperclass();
-		if (superclass == AbstractController.class) {
-			return (Class<?>) ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0];
-		} else {
-			return (Class<?>) ((ParameterizedType) superclass.getGenericSuperclass()).getActualTypeArguments()[0];
-		}
+	@SuppressWarnings("unchecked")
+	private Class<S> getCurClass() {
+		Map<String, Class<?>> genericSuperClass = getGenericSuperClass(this.getClass());
+		return (Class<S>) genericSuperClass.get("S");
 	}
 	
 	/**
-	 * @描述 自定义执行成功请求（抛出异常）
-	 * @param func 回调方法
-	 * @return 执行结果
-	 * @throws Exception 
+	 * @描述 成功响应
+	 * @param <R> 响应类型
+	 * @param data 成功数据（code=200）
+	 * @return 响应对象
 	 */
-	protected Response ok(FunctionRequest<S, Object> func) throws Exception {
-		return Response.ok(func.apply(service));
-	}
-	/**
-	 * @描述 自定义执行成功请求（不抛异常）
-	 * @param func 回调方法
-	 * @return 执行结果
-	 */
-	protected Response OK(Function<S, Object> func) {
-		return Response.ok(func.apply(service));
-	}
-	/**
-	 * @描述 自定义执行成功请求
-	 * @param error 异常时指定返回错误信息（为NULL不处理）
-	 * @param func 回调方法
-	 * @return 执行结果
-	 */
-	protected Response OK(Response error, FunctionRequest<S, Object> func) {
-		try {return Response.ok(func.apply(service));}
-		catch (Exception e) {return error == null ? Response.ok() : error;}
+	protected <R> Response<R> OK(R data) {
+		return new Response<R>(data);
 	}
 	
 	/**
-	 * @描述 自定义执行成功请求（抛出异常）
-	 * @param func 回调方法（返回为void）
-	 * @return 执行结果
-	 * @throws Exception 
+	 * @描述 成功响应
+	 * @param request 请求对象（返回空数据）
+	 * @return 响应对象
+	 * @throws Throwable 执行异常
 	 */
-	protected Response okv(FunctionRequestVoid<S> func) throws Exception {
-		func.apply(service);return Response.ok();
-	}
-	/**
-	 * @描述 自定义执行成功请求（不抛异常）
-	 * @param func 回调方法（返回为void）
-	 * @return 执行结果
-	 */
-	protected Response OKV(FunctionRequestVoidExt<S> func) {
-		func.apply(service);return Response.ok();
-	}
-	/**
-	 * @描述 自定义执行成功请求
-	 * @param error 异常时指定返回错误信息（为NULL不处理）
-	 * @param func 回调方法（返回为void）
-	 * @return 执行结果
-	 */
-	protected Response OKV(Response error, FunctionRequestVoid<S> func) {
-		try {func.apply(service);return Response.ok();}
-		catch (Exception e) {return error == null ? Response.ok() : error;}
+	protected Response<Void> OKV(FunctionRequestVoid<S> request) throws Throwable {
+		request.apply(service);
+		return new Response<Void>();
 	}
 	
 	/**
-	 * @描述 自定义布尔执行判断请求（布尔判断，抛出异常）
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回true为成功请求，否则都是失败请求）
-	 * @throws Exception 
+	 * @描述 错误响应
+	 * @param <R> 响应类型
+	 * @param errorMsg 错误信息（code=500）
+	 * @return 响应对象
 	 */
-	protected Response bl(FunctionRequest<S, Object> func) throws Exception {
-		Object apply = func.apply(service);
-		return Boolean.TRUE.equals(apply) ? Response.ok() : Response.error();
-	}
-	/**
-	 * @描述 自定义布尔执行判断请求（布尔判断，不抛异常）
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回true为成功请求，否则都是失败请求）
-	 */
-	protected Response BL(Function<S, Object> func) {
-		Object apply = func.apply(service);
-		return Boolean.TRUE.equals(apply) ? Response.ok() : Response.error();
-	}
-	/**
-	 * @描述 自定义布尔执行判断请求（布尔判断）
-	 * @param error 判断为false时失败请求对象（为NULL不处理）
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回true为成功请求，否则都是失败请求）
-	 */
-	protected Response BL(Response error, FunctionRequest<S, Object> func) {
-		try {
-			Object apply = func.apply(service);
-			return Boolean.TRUE.equals(apply) ? Response.ok() : error == null ? Response.ok() : error;
-		} catch (Exception e) {return error == null ? Response.ok() : error;}
+	protected <R> Response<R> ERROR(String errorMsg) {
+		return new Response<R>(errorMsg);
 	}
 	
 	/**
-	 * @描述 自定义值判断请求（equals判断，抛出异常）
-	 * @param verify 验证判断值
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回判断值相等为成功请求，否则都是失败请求）
-	 * @throws Exception 
+	 * @描述 错误响应
+	 * @param <R> 响应类型
+	 * @param errorMsg 错误信息（code=500）
+	 * @param errorData 错误数据
+	 * @return 响应对象
 	 */
-	protected Response eq(Object verify, FunctionRequest<S, Object> func) throws Exception {
-		Object apply = func.apply(service);
-		return (verify == null ? verify == apply : verify.equals(apply)) ? Response.ok() : Response.error();
-	}
-	/**
-	 * @描述 自定义值判断请求（equals判断，不抛异常）
-	 * @param verify 验证判断值
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回判断值相等为成功请求，否则都是失败请求）
-	 */
-	protected Response EQ(Object verify, Function<S, Object> func) {
-		Object apply = func.apply(service);
-		return (verify == null ? verify == apply : verify.equals(apply)) ? Response.ok() : Response.error();
-	}
-	/**
-	 * @描述 自定义值判断请求（equals判断）
-	 * @param verify 验证判断值
-	 * @param error 判断为不相等时失败请求对象（为NULL不处理）
-	 * @param func 回调方法
-	 * @return 执行结果（回调返回判断值相等为成功请求，否则都是失败请求）
-	 */
-	protected Response EQ(Object verify, Response error, FunctionRequest<S, Object> func) {
-		try {
-			Object apply = func.apply(service);
-			return (verify == null ? verify == apply : verify.equals(apply)) ? Response.ok() : error == null ? Response.ok() : error;
-		} catch (Exception e) {return error == null ? Response.ok() : error;}
+	protected <R> Response<R> ERROR(String errorMsg, R errorData) {
+		return new Response<R>(errorMsg, errorData);
 	}
 	
 	/**
-	 * @描述 响应指定的错误信息
-	 * @param code 错误码
-	 * @param msg 错误消息
-	 * @return 错误对象
+	 * @描述 自定义响应
+	 * @param <R> 响应类型
+	 * @param code 状态码
+	 * @param msg 消息
+	 * @return 响应对象
 	 */
-	protected Response error(int code, String msg) {return Response.error(code, msg);}
+	protected <R> Response<R> RSP(int code, String msg) {
+		return new Response<R>(code, msg);
+	}
+	
 	/**
-	 * @描述 响应指定的错误信息
-	 * @param msg 错误消息
-	 * @return 错误对象
+	 * @描述 自定义响应
+	 * @param <R> 响应类型
+	 * @param code 状态码
+	 * @param msg 消息
+	 * @param data 数据
+	 * @return 响应对象
 	 */
-	protected Response error(String msg) {return Response.error(msg);}
+	protected <R> Response<R> RSP(int code, String msg, R data) {
+		return new Response<R>(code, msg, data);
+	}
 }

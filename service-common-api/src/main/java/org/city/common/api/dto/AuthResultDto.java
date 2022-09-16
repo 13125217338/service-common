@@ -14,9 +14,9 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class AuthResultDto {
-	/*是否验证成功*/
+	/* 是否验证成功 */
 	private boolean isSuccess;
-	/*不成功时异常*/
+	/* 不成功时异常 */
 	private AuthNotPassException authNotPassException;
 	
 	/**

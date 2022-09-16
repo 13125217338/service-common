@@ -7,11 +7,11 @@ package org.city.common.api.in.function;
  * @描述 方法请求
  */
 @FunctionalInterface
-public interface FunctionRequest<S, R> {
+public interface FunctionRequest<T, R> {
 	/**
 	 * @描述 自定义能抛出异常的方法
-	 * @param s 入参
+	 * @param t 入参
 	 * @return 执行结果
 	 */
-	R apply(S s) throws Exception;
+	R apply(T t) throws Throwable;
 }
