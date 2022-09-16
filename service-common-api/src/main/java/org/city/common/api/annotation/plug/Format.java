@@ -19,11 +19,11 @@ import org.city.common.api.in.FormatFieldValue;
 @Documented
 public @interface Format {
 	/**
-	 * @描述 自定格式化实现类（需交给Spring管理）
+	 * @描述 自定义格式化实现类（需交给Spring管理）
 	 */
-	public Class<? extends FormatFieldValue> format();
+	public Class<? extends FormatFieldValue> format() default FormatFieldValue.class;
 	/**
-	 * @描述 自定义固定值
+	 * @描述 自定义类型
 	 */
-	public int fixVal() default 0;
+	public int type() default 0;
 }

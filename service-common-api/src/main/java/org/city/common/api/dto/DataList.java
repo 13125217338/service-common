@@ -19,5 +19,5 @@ public class DataList<D> {
 	/* 数据集 */
 	private List<D> rows;
 	/* 数据量 */
-	private int total;
+	private long total;
 }

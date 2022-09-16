@@ -21,7 +21,11 @@ public @interface MakeInvoke {
 	 */
 	public Class<? extends org.city.common.api.in.MakeInvoke> invoke();
 	/**
-	 * @描述 自定义参数（支持${key}取配置值与#{key}取方法入参）
+	 * @描述 自定义参数（通常用作标记）
+	 */
+	public int value() default 0;
+	/**
+	 * @描述 自定义参数（支持${key}取配置值与#{key}取方法入参与&{method}取执行方法返回值）
 	 */
 	public String[] values() default {};
 }
