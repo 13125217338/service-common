@@ -1,6 +1,6 @@
 package org.city.common.api.in.sql;
 
-import org.city.common.api.dto.BaseDto;
+import org.city.common.api.entity.BaseEntity;
 
 /**
  * @作者 ChengShi
@@ -11,7 +11,7 @@ import org.city.common.api.dto.BaseDto;
 public interface Limit {
 	/**
 	 * @描述 分页处理
-	 * @param baseDto 分页信息
+	 * @param baseEntity 公共实体类
 	 */
-	public void handler(BaseDto baseDto);
+	public void handler(BaseEntity baseEntity);
 }

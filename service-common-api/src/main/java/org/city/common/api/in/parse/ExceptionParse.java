@@ -6,7 +6,7 @@ import org.city.common.api.dto.ExceptionDto.CustomException;
  * @作者 ChengShi
  * @日期 2022-07-26 11:57:17
  * @版本 1.0
- * @描述 自定义解析异常错误
+ * @描述 自定义解析异常错误（实现类需交给Spring管理）
  */
 public interface ExceptionParse<T extends Throwable> {
 	/**
