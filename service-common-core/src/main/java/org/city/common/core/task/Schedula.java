@@ -1,8 +1,16 @@
 package org.city.common.core.task;
 
 import java.io.Closeable;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import org.city.common.api.in.Runnable;
+import org.springframework.scheduling.support.CronExpression;
+import org.springframework.util.Assert;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @作者 ChengShi
@@ -10,33 +18,22 @@ import java.text.SimpleDateFormat;
  * @版本 1.0
  * @描述 定时调度线程（可被手动Notify解开运行）
  */
-public final class Schedula extends Thread implements Closeable{
+@Slf4j
+public final class Schedula extends Thread implements Closeable {
 	private final Runnable task;
 	private final Task taskMain;
 	private final String id;
-	private long timeout = 1, baseTime = 0, recordTime = System.currentTimeMillis();
+	private final Supplier<String> expression;
+	private long nextTime = Long.MAX_VALUE;
 	private boolean isReWait = true, isRun = true, isFrist = true;
-	Schedula(Task taskMain, String id, Runnable task, String baseTime, long timeout, boolean isFrist) {
-		this.baseTime = parseBaseTime(baseTime);
+	private CronExpression cronExpression;
+	private String param;
+	Schedula(Task taskMain, String id, Runnable task, Supplier<String> expression, boolean isFrist) {
 		this.taskMain = taskMain;
 		this.id = id;
 		this.task = task;
-		this.timeout = timeout < 1 ? this.timeout : timeout;
+		this.expression = expression;
 		this.isFrist = isFrist;
-	}
-	
-	/*将yyyy-MM-dd HH:mm:ss格式日期转化long时间*/
-	private long parseBaseTime(String baseTime){
-		long baseTime_ = 0;
-		/*用于计算的基本时间*/
-		if (baseTime != null && baseTime.length() > 0) {
-			try {
-				baseTime_ = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").parse(baseTime).getTime();
-			} catch (ParseException e) {
-				throw new RuntimeException("你输入的baseTime时间格式不对！");
-			}
-		}
-		return baseTime_;
 	}
 	
 	/**
@@ -44,53 +41,73 @@ public final class Schedula extends Thread implements Closeable{
 	 * @return 剩余多少毫秒
 	 */
 	public long getOddTime() {
-		long oddTime = timeout - (System.currentTimeMillis() - recordTime);
-		return oddTime < 0 ? timeout : oddTime;
+		long oddTime = nextTime - System.currentTimeMillis();
+		return oddTime < 1 ? 1 : oddTime;
 	}
-	
 	/**
 	 * @描述 请使用此方法来notify（已加锁）
 	 */
-	public synchronized void Notify(){
+	public synchronized void Notify() {
 		this.isReWait = false;
+		this.notifyAll();
+	}
+	/**
+	 * @描述 刷新定时时间
+	 */
+	public synchronized void flush() {
+		this.isReWait = true;
 		this.notifyAll();
 	}
 	/**
 	 * @描述 停止线程并移除该线程
 	 */
 	@Override
-	public void close(){
+	public void close() {
 		this.isRun = false;
-		taskMain.dataCenter.SCALUDES.remove(id);
+		taskMain.dataCenter.SCHEDULA.remove(id);
 		this.Notify();
-	}
-	/**
-	 * @描述 重新设置定时时间（已加锁）
-	 * @param baseTime 基本时间，以此时间为基数按timeout进行定时跑，如果为null或空字符则直接使用timeout，该时间必须为yyyy-MM-dd HH:mm:ss格式（如：2019-01-05 18:30:00）
-	 * @param timeout 定时时间，毫秒（小于等于0默认一直跑）
-	 */
-	public synchronized void setTimeout(String baseTime, long timeout){
-		this.isReWait = true;
-		this.baseTime = parseBaseTime(baseTime);
-		this.timeout = timeout < 1 ? 1 : timeout;
-		this.notifyAll();
 	}
 	@Override
 	public void run() {
 		while(isRun){
 			try {
-				if (isFrist) {task.run();}
-				else{isFrist = true;}
-				/*加锁定时跑*/
+				if (isFrist) {try {task.run();} finally {Thread.interrupted();}} else {isFrist = true;}
+				/* 加锁定时跑 */
 				synchronized (this) {
 					while(isReWait){
-						isReWait = false;recordTime = System.currentTimeMillis();
-						if (baseTime == 0) {this.wait(timeout);}
-						else {this.wait(timeout - (Math.abs(System.currentTimeMillis() - baseTime) % timeout));}
+						isReWait = false; nextTime = getNextTime();
+						this.wait(getOddTime());
 					}
 					isReWait = true;
 				}
-			} catch (Throwable e) {isFrist = false;}
+			} catch (Throwable e) {log.error(String.format("定时任务[%s]运行异常！", id), e); isFrist = false;}
 		}
+	}
+	
+	/* 获取下次运行时间点 */
+	private long getNextTime() {
+		String newParam = expression.get().trim();
+		if (param == null || !param.equals(newParam)) {
+			long time = selectRun(newParam, (isCron) -> {
+				if (isCron) {
+					Assert.isTrue(CronExpression.isValidExpression(newParam), String.format("Cron表达式[%s]有误！", newParam));
+					cronExpression = CronExpression.parse(newParam);
+					return Timestamp.valueOf(cronExpression.next(LocalDateTime.now())).getTime();
+				} else {
+					try {return Long.parseLong(newParam);}
+					catch (NumberFormatException e) {throw new NumberFormatException(String.format("表达式[%s]有误！", newParam));}
+				}
+			});
+			param = newParam; //解析成功需要保存原参数
+			return time;
+		}
+		return selectRun(newParam, (isCron) -> {
+			return isCron ? Timestamp.valueOf(cronExpression.next(LocalDateTime.now())).getTime() : Long.parseLong(newParam);
+		});
+	}
+	/* 选择运行 */
+	private long selectRun(String param, Function<Boolean, Long> function) {
+		if (param.split(" ").length > 1) {return function.apply(true).longValue();}
+		else {return System.currentTimeMillis() + function.apply(false).longValue();}
 	}
 }
