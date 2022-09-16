@@ -3,7 +3,7 @@ package org.city.common.core.task;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @作者 ChengShi
@@ -20,7 +20,9 @@ class DataCenter {
 	final List<Run> RUNS = new LinkedList<>();
 	
 	/** 所有定时任务线程 */
-	final Map<String, Schedula> SCALUDES = new TreeMap<>();
+	final Map<String, Schedula> SCALUDES = new ConcurrentHashMap<>();
+	/** 所有同步数据 */
+	final Map<String, SysParam> SYS_DATA = new ConcurrentHashMap<>();
 	
 	/** 是否jvm关闭 */
 	boolean isClose = false;
@@ -35,5 +37,4 @@ class DataCenter {
 			
 	/** 最大任务数量 */
 	int TASKMAX = Short.MAX_VALUE;
-	
 }

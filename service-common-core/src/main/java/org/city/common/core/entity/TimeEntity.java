@@ -1,6 +1,6 @@
 package org.city.common.core.entity;
 
-import org.city.common.api.annotation.sql.Column;
+import java.sql.Timestamp;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -13,10 +13,9 @@ import lombok.Setter;
  */
 @Setter
 @Getter
-public class TimeEntity extends BaseEntity{
+public class TimeEntity extends BaseEntity {
 	/** 创建时间 */
-	@Column(value = "NOW()")
-	private String createTime;
+	private Timestamp createTime;
 	/** 更新时间 */
-	private String updateTime;
+	private Timestamp updateTime;
 }

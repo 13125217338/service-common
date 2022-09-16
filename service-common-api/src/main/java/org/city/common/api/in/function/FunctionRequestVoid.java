@@ -12,5 +12,5 @@ public interface FunctionRequestVoid<S> {
 	 * @描述 自定义返回void能抛出异常的方法
 	 * @param s 入参
 	 */
-	void apply(S s) throws Exception;
+	void apply(S s) throws Throwable;
 }

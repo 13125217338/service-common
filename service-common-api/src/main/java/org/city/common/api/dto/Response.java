@@ -1,5 +1,7 @@
 package org.city.common.api.dto;
 
+import org.city.common.api.dto.remote.RemoteConfigDto;
+import org.city.common.api.util.SpringUtil;
 import org.springframework.http.HttpStatus;
 
 import lombok.Data;
@@ -14,12 +16,14 @@ import lombok.experimental.Accessors;
 @Data
 @Accessors(chain = true)
 public class Response {
-	/*标识码*/
+	/* 默认成功字符串 */
+	private final static String SUCCESS = SpringUtil.getBean(RemoteConfigDto.class).getMsg();
+	/* 标识码 */
 	private int code = HttpStatus.OK.value();
-	/*数据*/
+	/* 数据 */
 	private Object data;
-	/*消息*/
-	private String msg = HttpStatus.OK.getReasonPhrase();
+	/* 消息 */
+	private String msg = SUCCESS;
 	
 	/**
 	 * @描述 是否成功请求

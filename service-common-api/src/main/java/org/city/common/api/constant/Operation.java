@@ -1,11 +1,16 @@
 package org.city.common.api.constant;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 /**
  * @作者 ChengShi
  * @日期 2022-07-04 10:09:05
  * @版本 1.0
  * @描述 操作符
  */
+@Getter
+@AllArgsConstructor
 public enum Operation {
 	/** 大于操作 */
 	Greater(" > "),
@@ -34,9 +39,5 @@ public enum Operation {
 	/** 不是空条件 */
 	Is_Not_Null(" is not null ");
 	
-	/*操作值*/
-	private final String optVal;
-	public String getOptVal() {return this.optVal;}
-	
-	private Operation(String optVal) {this.optVal = optVal;}
+	private final String optVal; //操作值
 }
