@@ -1,6 +1,9 @@
 package org.city.common.core.controller;
 
-import org.city.common.api.dto.RemoteDto;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.city.common.api.dto.remote.RemoteDto;
 import org.city.common.core.service.RemoteInvokeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -22,7 +25,7 @@ public class RemoteInvoke {
 	private RemoteInvokeService remoteInvokeService;
 	
 	@PostMapping("/invoke")
-	public Object invoke(@Validated @RequestBody RemoteDto remoteDto) throws Throwable {
-		return remoteInvokeService.$invoke(remoteDto);
+	public Object invoke(@Validated @RequestBody RemoteDto remoteDto, HttpServletRequest request, HttpServletResponse response) throws Throwable {
+		return remoteInvokeService.$invoke(remoteDto, request, response);
 	}
 }

@@ -2,11 +2,9 @@ package org.city.common.api.dto;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.city.common.api.constant.JoinType;
 import org.city.common.api.constant.MathSql;
@@ -45,13 +43,22 @@ public class Condition {
 	/* 连接表 */
 	private Map<String, Join> joins = new LinkedHashMap<>();
 	/*分组条件*/
-	private Set<String> groupBys = new HashSet<>();
+	private List<GroupBy> groupBys = new ArrayList<>();
 	/* 排序条件 */
 	private List<OrderBy> orderBys = new ArrayList<>();
 	/*分页*/
 	private Page page = null;
+	/* 忽略索引名 */
+	private String ignore = null;
 	/* 自定义条件 */
 	private BaseDto baseDto = new BaseDto();
+	
+	/**
+	 * @描述 忽略索引名称
+	 * @param ignoreName 忽略索引名称
+	 * @return 当前条件
+	 */
+	public Condition setIgnore(String ignoreName) {this.ignore = ignoreName; return this;}
 	
 	/**
 	 * @描述 获取连接对象（只对查询有效）
@@ -328,33 +335,46 @@ public class Condition {
 	
 	/**
 	 * @描述 分组参数
+	 * @param joinTable 分组表，NULL=原样输出name
+	 * @param name 分组名称
+	 * @return 当前条件
+	 */
+	public Condition groupBy(JoinTable joinTable, String name) {
+		if (name == null) {throw new IllegalArgumentException("分组名称不能为空！");}
+		groupBys.add(new GroupBy(joinTable, name));
+		return this;
+	}
+	
+	/**
+	 * @描述 分组参数
 	 * @param names 多个分组名称
 	 * @return 当前条件
 	 */
 	public Condition groupBy(String...names) {
 		if (names == null) {throw new IllegalArgumentException("分组名称不能为空！");}
-		for (String name : names) {groupBys.add(name);}
+		for (String name : names) {groupBys.add(new GroupBy(null, name));}
 		return this;
 	}
 	
 	/**
 	 * @描述 排序参数
-	 * @param name 多个排序名称（默认升序）
+	 * @param names 多个排序名称（默认升序）
 	 * @return 当前条件
 	 */
 	public Condition orderBy(String...names) {
 		if (names == null) {throw new IllegalArgumentException("排序名称不能为空！");}
-		for (String name : names) {orderBys.add(new OrderBy(name, true));}
+		for (String name : names) {orderBys.add(new OrderBy(null, name, true));}
 		return this;
 	}
 	/**
 	 * @描述 排序参数
+	 * @param joinTable 排序表，NULL=原样输出name
 	 * @param name 排序名称
 	 * @param isAsc 排序类型 - true为升序
 	 * @return 当前条件
 	 */
-	public Condition orderBy(String name, boolean isAsc) {
-		orderBys.add(new OrderBy(name, isAsc));
+	public Condition orderBy(JoinTable joinTable, String name, boolean isAsc) {
+		orderBys.add(new OrderBy(joinTable, name, isAsc));
 		return this;
 	}
 	
@@ -443,6 +463,15 @@ public class Condition {
 		private Cur cur;
 		/* 连接条件 */
 		private ON[] ons;
+		/* 忽略索引名 */
+		private String ignore = null;
+		
+		/**
+		 * @描述 忽略索引名称
+		 * @param ignoreName 忽略索引名称
+		 * @return 连接对象
+		 */
+		public Join setIgnore(String ignoreName) {this.ignore = ignoreName; return this;}
 		
 		/**
 		 * @描述 自定义连接字段（当一个都不添加时查所有，只对查询有效）
@@ -618,11 +647,13 @@ public class Condition {
 		
 		/**
 		 * @描述 转成Sql语句
+		 * @param ignoreName 忽略索引名称
 		 * @return 连接后的sql
 		 */
-		public String toSql() {
-			return String.format("%s`%s` %s on (%s)", joinType.val,
-					joinTable.join.getTable().name(), joinTable.joinAlias, onSql(joinTable.joinAlias));
+		public String toSql(String ignoreName) {
+			ignoreName = StringUtils.hasText(ignoreName) ? " IGNORE INDEX(" + ignoreName + ")" : "";
+			return String.format("%s`%s` %s %s on (%s)", joinType.val,
+					joinTable.join.getTable().name(), joinTable.joinAlias, ignoreName, onSql(joinTable.joinAlias));
 		}
 		/* 条件返回 */
 		private String onSql(String joinAlias) {
@@ -691,10 +722,22 @@ public class Condition {
 	@AllArgsConstructor
 	@NoArgsConstructor
 	public static class OrderBy {
+		/* 使用哪个表做排序 - NULL=自己 */
+		private JoinTable joinTable;
 		/* 排序名 */
 		private String name;
 		/* 排序类型 - true为升序 */
 		private boolean isAsc;
+	}
+	
+	@Data
+	@AllArgsConstructor
+	@NoArgsConstructor
+	public static class GroupBy {
+		/* 使用哪个表做分组 - NULL=自己 */
+		private JoinTable joinTable;
+		/* 分组名 */
+		private String name;
 	}
 	
 	@Data

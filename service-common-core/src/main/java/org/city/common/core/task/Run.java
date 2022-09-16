@@ -46,7 +46,7 @@ class Run extends Thread implements Closeable{
 				Runnable task = null;
 				while(!isCore && (task = taskMain.getTask()) != null){
 					try {task.run();} catch (Throwable e) {}
-					finally {if (task.SYS != null) {synchronized (task.SYS) {task.SYS.notifyAll();}}}
+					finally {if (task.SYS != null) {synchronized (task.SYS) {task.SYS.notifyAll();}} Thread.interrupted();}
 				}
 			} catch (Throwable e) {}
 			finally {try {if (isCore) {taskMain.removeImport();}isCore = false;} catch (Throwable e1) {}}

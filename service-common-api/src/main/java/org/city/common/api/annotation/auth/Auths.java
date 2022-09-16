@@ -23,7 +23,7 @@ public @interface Auths {
 	 */
 	public AuthContidionType type() default AuthContidionType.AND;
 	/**
-	 * @描述 验证
+	 * @描述 多个验证提供者
 	 */
 	public Auth[] auths();
 }

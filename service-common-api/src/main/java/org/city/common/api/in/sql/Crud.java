@@ -1,5 +1,6 @@
 package org.city.common.api.in.sql;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -86,7 +87,7 @@ public interface Crud<D extends BaseDto> {
 	 * @param ds 批量数据
 	 * @return 添加成功数
 	 */
-	public int addBatch(List<D> ds);
+	public int addBatch(Collection<D> ds);
 	
 	/**
 	 * @描述 通过条件删除数据
@@ -111,7 +112,7 @@ public interface Crud<D extends BaseDto> {
 	 * @param isUpdateNull 是否更新值为NULL的数据（false = 为空的数据不更新）
 	 * @return 更新成功数
 	 */
-	public int updateBatch(Condition condition, List<D> dtos, boolean isUpdateNull);
+	public int updateBatch(Condition condition, Collection<D> dtos, boolean isUpdateNull);
 	
 	/**
 	 * @描述 清除参数的所有Sql

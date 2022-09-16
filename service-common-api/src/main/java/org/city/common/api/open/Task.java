@@ -1,4 +1,6 @@
-package org.city.common.api.in;
+package org.city.common.api.open;
+
+import org.city.common.api.in.Runnable;
 
 /**
  * @作者 ChengShi
@@ -51,4 +53,8 @@ public interface Task {
 	 * @param timeout 定时时间
 	 */
 	public void resetSchedulaTimeout(String id, String baseTime, long timeout);
+	/**
+	 * @描述 设置当前线程为重要线程（线程钩子）
+	 */
+	public void setImport();
 }

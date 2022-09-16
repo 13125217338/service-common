@@ -1,6 +1,6 @@
 package org.city.common.api.in;
 
-import org.city.common.api.adapter.ExtensionIOAdapter;
+import org.city.common.api.adapter.RemoteSaveAdapter;
 import org.springframework.context.ApplicationContext;
 
 /**
@@ -13,7 +13,8 @@ public interface GlobalConfig {
 	/**
 	 * @描述 初始化配置
 	 * @param applicationContext 应用上下文
+	 * @return 远程存储适配
 	 * @throws Exception
 	 */
-	public ExtensionIOAdapter init(ApplicationContext applicationContext) throws Exception;
+	public RemoteSaveAdapter init(ApplicationContext applicationContext) throws Exception;
 }

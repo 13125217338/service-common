@@ -22,4 +22,9 @@ public class TypeDto {
 	private TypeDto[] actualType;
 	/* 数组泛型 */
 	private TypeDto genericArray;
+	
+	/** 获取当前类型全称 */
+	public String getClassName() {
+		return rawType == null ? typeName : rawType.getTypeName();
+	}
 }

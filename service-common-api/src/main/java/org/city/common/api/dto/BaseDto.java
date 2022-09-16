@@ -50,11 +50,13 @@ public class BaseDto implements Serializable{
 	 */
 	private class LimitPage {
 		private final int max;
+		private final int maxPage;
 		private final int lastSize;
 		private final BaseDto baseDto;
 		private int cur = 1;
 		private LimitPage(int max, BaseDto baseDto) {
-			this.max = baseDto.getPageSize() / max;
+			this.max = max;
+			this.maxPage = baseDto.getPageSize() / max;
 			this.lastSize = baseDto.getPageSize() % max;
 			this.baseDto = baseDto;
 		}
@@ -65,13 +67,17 @@ public class BaseDto implements Serializable{
 		 */
 		private BaseDto getCurBase() {
 			if (this.cur == -1) {return null;}
-			if (this.cur > max) {
+			if (this.cur > maxPage) {
 				if (lastSize > 0) {
 					this.baseDto.setPageNum(cur);
 					this.baseDto.setPageSize(lastSize);
 					this.cur = -1;
 				} else {return null;}
-			} else {this.baseDto.setPageNum(cur); this.cur++;}
+			} else {
+				this.baseDto.setPageNum(cur);
+				this.baseDto.setPageSize(max);
+				this.cur++;
+			}
 			return this.baseDto;
 		}
 	}

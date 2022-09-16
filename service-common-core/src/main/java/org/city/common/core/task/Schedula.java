@@ -79,7 +79,7 @@ public final class Schedula extends Thread implements Closeable{
 	public void run() {
 		while(isRun){
 			try {
-				if (isFrist) {task.run();}
+				if (isFrist) {try {task.run();} finally {Thread.interrupted();}}
 				else{isFrist = true;}
 				/*加锁定时跑*/
 				synchronized (this) {

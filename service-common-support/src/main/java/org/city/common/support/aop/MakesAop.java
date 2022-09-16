@@ -9,6 +9,7 @@ import java.util.Map.Entry;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.city.common.api.annotation.make.MakeInvoke;
 import org.city.common.api.annotation.make.Makes;
 import org.city.common.api.constant.CommonConstant;
@@ -19,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +32,7 @@ import org.springframework.stereotype.Component;
  */
 @Aspect
 @Component
+@Order(Short.MIN_VALUE)
 @DependsOn(CommonConstant.PLUG_UTIL_NAME)
 public class MakesAop implements Replace,JSONParser{
 	@Autowired
@@ -37,16 +40,11 @@ public class MakesAop implements Replace,JSONParser{
 	@Autowired
 	private ApplicationContext applicationContext;
 	
-	@Around("@annotation(makes)")
-	public Object makesAround(ProceedingJoinPoint jp, Makes makes) throws Throwable {
-		Class<?> target = jp.getTarget().getClass();
-		Method method = null;
-		/* 获取实现类的方法 */
-		for (Method mth : target.getDeclaredMethods()) {if (mth.getName().equals(jp.getSignature().getName())) {method = mth; break;}}
-		if (method == null) {throw new NullPointerException(String.format("未找到被拦截的方法[%s]，类名[%s]", jp.getSignature().getName(), target.getName()));}
-		
+	@Around("@annotation(org.city.common.api.annotation.make.Makes)")
+	public Object makesAround(ProceedingJoinPoint jp) throws Throwable {
+		Method method = ((MethodSignature)jp.getSignature()).getMethod();		
 		/* 执行操作 */
-		return makeInvoke(jp, makes, method);
+		return makeInvoke(jp, method.getDeclaredAnnotation(Makes.class), method);
 	}
 
 	/* 操作执行 */
@@ -67,10 +65,10 @@ public class MakesAop implements Replace,JSONParser{
 			}
 		}
 		/* 如果没有操作 */
-		if (invokes.size() == 0) {return jp.proceed(jp.getArgs());}
+		if (invokes.size() == 0) {return jp.proceed();}
 		
 		/* 执行器 */
-		Process process = new org.city.common.api.in.MakeInvoke.Process() {
+		Process process = new Process() {
 			/*执行链路*/
 			private LinkedList<Class<? extends org.city.common.api.in.MakeInvoke>> Makes = new LinkedList<>();
 			/* 是否错误执行 */
@@ -89,7 +87,7 @@ public class MakesAop implements Replace,JSONParser{
 				if (this.isError) {return null;}
 				else {
 					this.isExcute = true;
-					return jp.proceed(jp.getArgs());
+					return jp.proceed();
 				}
 			}
 			@Override

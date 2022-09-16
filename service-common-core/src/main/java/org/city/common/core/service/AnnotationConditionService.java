@@ -76,7 +76,7 @@ class AnnotationConditionService<D extends BaseDto> implements AnnotationConditi
 						cur.setAlias(jn.cur().alias());
 					}
 					/* 添加连接条件 */
-					condition.addJoin(cur, crud, jn.alias(), jn.joinType(), ons);
+					condition.addJoin(cur, crud, jn.alias(), jn.joinType(), ons).setIgnore(jn.ignore());;
 				}
 			}
 		}

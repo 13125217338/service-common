@@ -17,7 +17,7 @@ import java.lang.annotation.Target;
 @Documented
 public @interface Auth {
 	/**
-	 * @描述 验证回调对应@AuthImpl中的id值（支持${key}取配置值）
+	 * @描述 验证回调对应@AuthFilter中的id值
 	 */
 	public String id();
 	/**

@@ -2,12 +2,11 @@ package org.city.common.api.util;
 
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.servlet.http.HttpServletRequest;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -52,13 +51,13 @@ public final class HeaderUtil {
 	 * @描述 获取请求所有头信息
 	 * @return 所有头信息
 	 */
-	public static Map<String, List<String>> getHeader() {
-		Map<String, List<String>> header = new HashMap<>();
+	public static HttpHeaders getHeader() {
+		HttpHeaders headers = new HttpHeaders();
 		
 		/* 取出当前请求头 - 转发请求头时不一定有当前请求 */
 		HttpServletRequest request = null;
 		try {request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();}
-		catch (Exception e) {return header;}
+		catch (Exception e) {return headers;}
 		
 		/*取所有头名称进行添加*/
 		Enumeration<String> headerNames = request.getHeaderNames();
@@ -67,11 +66,11 @@ public final class HeaderUtil {
 			String hName = headerNames.nextElement();
 			
 			/*多个头值*/
-			Enumeration<String> headers = request.getHeaders(hName);
-			while(headers.hasMoreElements()){headerVal.add(headers.nextElement());}
+			Enumeration<String> headerss = request.getHeaders(hName);
+			while(headerss.hasMoreElements()){headerVal.add(headerss.nextElement());}
 			/*添加头信息*/
-			header.put(hName, headerVal);
+			headers.put(hName, headerVal);
 		}
-		return header;
+		return headers;
 	}
 }

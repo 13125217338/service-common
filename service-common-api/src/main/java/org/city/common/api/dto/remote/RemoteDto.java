@@ -1,4 +1,4 @@
-package org.city.common.api.dto;
+package org.city.common.api.dto.remote;
 
 import javax.validation.constraints.NotBlank;
 
@@ -20,9 +20,9 @@ public class RemoteDto {
 	/* 方法参数 */
 	private Object[] args;
 	/* 方法缓存数据 */
-	private MethodCacheDto methodCacheDto;
+	private RemoteMethodDto remoteMethodDto;
 	
-	public static RemoteDto of(String verify, MethodCacheDto methodCacheDto, Object...args) {
-		return new RemoteDto().setVerify(verify).setMethodCacheDto(methodCacheDto).setArgs(args);
+	public static RemoteDto of(String verify, RemoteMethodDto remoteMethodDto, Object...args) {
+		return new RemoteDto().setVerify(verify).setRemoteMethodDto(remoteMethodDto).setArgs(args);
 	}
 }

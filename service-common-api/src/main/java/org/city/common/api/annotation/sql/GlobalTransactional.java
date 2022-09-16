@@ -1,4 +1,4 @@
-package org.city.common.api.annotation.request;
+package org.city.common.api.annotation.sql;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -8,11 +8,11 @@ import java.lang.annotation.Target;
 
 /**
  * @作者 ChengShi
- * @日期 2022年7月24日
+ * @日期 2022-10-17 10:22:08
  * @版本 1.0
- * @描述 多个请求体（原参数体必须是一个JSONObject对象，否则抛出异常）
+ * @描述 标记全局分布式事务（拦截@Transactional注解）
  */
-@Target(ElementType.PARAMETER)
+@Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface MutiBody {}
+public @interface GlobalTransactional {}

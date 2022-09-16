@@ -4,6 +4,7 @@ import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+import org.city.common.api.constant.PrimitiveClass;
 import org.city.common.api.dto.TypeDto;
 
 /**
@@ -19,10 +20,9 @@ public interface TypeParse {
 	 * @return 类型参数
 	 */
 	default TypeDto product(Type type) {
-		if (type instanceof Class) {
+		if(type instanceof Class) {
 			/* 原类 */
-			return new TypeDto().setTypeName(Class.class.getName())
-					.setRawType(new TypeDto().setTypeName(((Class<?>) type).getName()));
+			return new TypeDto().setTypeName(((Class<?>) type).getName());
 		} else if(type instanceof ParameterizedType) {
 			ParameterizedType ptype = (ParameterizedType) type;
 			TypeDto[] types = new TypeDto[ptype.getActualTypeArguments().length];
@@ -51,10 +51,8 @@ public interface TypeParse {
 	default Type parse(TypeDto typeDto) {
 		if (typeDto == null || typeDto.getTypeName() == null) {return null;}
 		try {
-			/* 原类 */
-			if (typeDto.getTypeName().equals(Class.class.getName())) {return Class.forName(typeDto.getRawType().getTypeName());}
 			/* 泛型 */
-			else if(typeDto.getTypeName().equals(ParameterizedType.class.getName())) {
+			if(typeDto.getTypeName().equals(ParameterizedType.class.getName())) {
 				return new ParameterizedType() {
 					@Override
 					public Type getRawType() {return parse(typeDto.getRawType());}
@@ -73,7 +71,31 @@ public interface TypeParse {
 					@Override
 					public Type getGenericComponentType() {return parse(typeDto.getGenericArray());}
 				};
-			} else {return null;}
+			/* 原类 */
+			} else {return forName(typeDto.getTypeName());}
 		} catch (Exception e) {throw new RuntimeException(e);}
+	}
+	
+	
+	/**
+	 * @描述 获取原类
+	 * @param type 待生成类型
+	 * @return 原类
+	 */
+	default Class<?> getClass(Type type) {
+		if(type instanceof ParameterizedType) {return (Class<?>) ((ParameterizedType) type).getRawType();}
+		else if(type instanceof GenericArrayType) {return getClass(((GenericArrayType) type).getGenericComponentType());}
+		else {return (Class<?>) type;}
+	}
+	
+	/**
+	 * @描述 通过类名找类（支持查找基本类型）
+	 * @param name 类名
+	 * @return 对应类
+	 * @throws ClassNotFoundException
+	 */
+	default Class<?> forName(String name) throws ClassNotFoundException {
+		try {return Class.forName(name);}
+		catch (ClassNotFoundException e) {return PrimitiveClass.forName(name);}
 	}
 }

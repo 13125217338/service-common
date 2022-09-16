@@ -8,20 +8,20 @@ import java.lang.annotation.Target;
 
 /**
  * @作者 ChengShi
- * @日期 2022年8月20日
+ * @日期 2022-10-07 13:07:45
  * @版本 1.0
- * @描述 项目启动初始化方法缓存
+ * @描述 标识方法为可远程调用（接口类必须先注解@Remote才有效）
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface InitMethodCache {
+public @interface RemoteMethod {
 	/**
-	 * @描述 全局唯一获取ID（支持${key}取配置值，支持#{method}执行当前类无参方法获取String类型返回值）
+	 * @描述 方法定义名
 	 */
-	public String id();
+	public String name();
 	/**
-	 * @描述 自定义参数（支持${key}取配置值，支持#{method}执行当前类无参方法获取String类型返回值）
+	 * @描述 方法自定义值（支持${key}取配置值，支持#{method}执行当前类无参方法获取String类型返回值）
 	 */
 	public String value() default "";
 }

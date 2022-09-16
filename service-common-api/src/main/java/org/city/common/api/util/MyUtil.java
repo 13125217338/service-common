@@ -23,6 +23,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
 
@@ -207,6 +209,19 @@ public final class MyUtil {
 			value = replaceStr(value, replaceStr, reString);
 		}
 		return value;
+	}
+	
+	/**
+	 * @描述 获取数据中所有为NULL的字段名
+	 * @param data 待获取数据
+	 * @return 为NULL的字段名
+	 */
+	public static String[] getNullName(Object data) {
+		if (data == null) {return new String[0];}
+		Set<String> collect = FieldUtil.getAllDeclaredField(data.getClass()).stream().filter(v -> {
+			try {return v.get(data) == null;} catch (Exception e) {return false;}
+		}).map(v -> v.getName()).collect(Collectors.toSet());
+		return collect.toArray(new String[collect.size()]);
 	}
 	
 	/**

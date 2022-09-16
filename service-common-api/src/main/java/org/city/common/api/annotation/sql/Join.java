@@ -28,6 +28,10 @@ public @interface Join {
 	 * @描述 连接的表
 	 */
 	public Class<?> join();
+	/**
+	 * @描述 连接表忽略索引名称
+	 */
+	public String ignore() default "";
 	
 	/**
 	 * @描述 连接实体类字段名（只对Fields与Conditions注解有效）

@@ -6,21 +6,21 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.city.common.api.annotation.plug.GlobalExtension;
+import org.springframework.stereotype.Component;
 
 /**
  * @作者 ChengShi
- * @日期 2022-06-24 23:19:34
+ * @日期 2022-10-07 14:39:06
  * @版本 1.0
- * @描述 验证实现
+ * @描述 验证过滤
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-@GlobalExtension(IdAs = "id")
-public @interface AuthImpl {
+@Component
+public @interface AuthFilter {
 	/**
-	 * @描述 提供者唯一ID值
+	 * @描述 验证唯一ID
 	 */
 	public String id();
 }

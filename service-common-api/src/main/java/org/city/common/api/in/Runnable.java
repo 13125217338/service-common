@@ -9,7 +9,7 @@ package org.city.common.api.in;
 public interface Runnable {
 	/**
 	 * @描述 带抛出异常
-	 * @throws Exception
+	 * @throws Throwable
 	 */
-	public void run() throws Exception;
+	public void run() throws Throwable;
 }

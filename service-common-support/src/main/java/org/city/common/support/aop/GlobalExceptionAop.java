@@ -11,10 +11,11 @@ import org.city.common.api.dto.GlobalExceptionDto;
 import org.city.common.api.dto.Response;
 import org.city.common.api.dto.ExceptionDto.CustomException;
 import org.city.common.api.exception.ResponseException;
+import org.city.common.api.in.ThrowableMessage;
 import org.city.common.api.in.parse.ExceptionParse;
 import org.city.common.api.in.parse.JSONParser;
+import org.city.common.api.util.SpringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.DependsOn;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.CollectionUtils;
@@ -33,9 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestControllerAdvice
 @DependsOn(CommonConstant.PLUG_UTIL_NAME)
-public class GlobalExceptionAop implements JSONParser{
-	@Value("${spring.application.name}")
-	private String appName;
+public class GlobalExceptionAop implements JSONParser,ThrowableMessage{
 	@Autowired(required = false)
 	private List<ExceptionParse<? extends Throwable>> exceptionParses;
 	
@@ -43,6 +42,7 @@ public class GlobalExceptionAop implements JSONParser{
 	@ResponseStatus(code = HttpStatus.OK)
 	@ExceptionHandler(value = Throwable.class)
 	public Object exceptionHandler(Throwable e) {
+		e = getRealExcept(e); //获取真实异常
 		/* 唯一通道ID */
 		final String trackId = UUID.randomUUID().toString();
 		
@@ -64,7 +64,7 @@ public class GlobalExceptionAop implements JSONParser{
 		
 		/*异常信息*/
 		ExceptionDto exception = getException(e);
-		GlobalExceptionDto globalExceptionDto = new GlobalExceptionDto(appName, exception.getAppMsg(), trackId);
+		GlobalExceptionDto globalExceptionDto = new GlobalExceptionDto(SpringUtil.getAppName(), exception.getAppMsg(), trackId);
 		
 		/*自定义异常*/
 		if (!CollectionUtils.isEmpty(exceptionParses)) {

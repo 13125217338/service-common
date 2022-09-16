@@ -23,7 +23,9 @@ import org.city.common.api.constant.MathSql;
 import org.city.common.api.constant.Operation;
 import org.city.common.api.dto.BaseDto;
 import org.city.common.api.dto.Condition;
+import org.city.common.api.dto.Condition.GroupBy;
 import org.city.common.api.dto.Condition.Join;
+import org.city.common.api.dto.Condition.JoinTable;
 import org.city.common.api.dto.Condition.OrderBy;
 import org.city.common.api.dto.Condition.Param;
 import org.city.common.api.dto.Condition.Join.Cur;
@@ -32,6 +34,7 @@ import org.city.common.api.in.sql.Crud;
 import org.city.common.api.util.FieldUtil;
 import org.city.common.api.util.MyUtil;
 import org.city.common.core.entity.BaseEntity;
+import org.city.common.core.handler.RemoteTransactionalHandler;
 import org.springframework.aop.framework.AopContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -58,8 +61,11 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	private JdbcTemplate jdbcTemplate;
 	@Autowired
 	private ApplicationContext applicationContext;
+	@Autowired
+	private RemoteTransactionalHandler remoteTransactionalHandler;
 	/*dto类型*/
-	private final Class<?> DTO_CLASS = getGenericsClass(0);
+	@SuppressWarnings("unchecked")
+	private final Class<D> DTO_CLASS = (Class<D>) getGenericsClass(0);
 	/* dto字段名对应字段 */
 	private final Map<String, Field> DTO_FIELD = FieldUtil.getAllDeclaredField(DTO_CLASS).stream().collect(Collectors.toMap(Field::getName, f -> f, (v1, v2) -> v1));
 	/*该实体类注解*/
@@ -94,7 +100,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	public int count(Condition condition) {
 		try {
 			return countSql(condition);
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -108,7 +114,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	public List<D> findAll(Condition condition) {
 		try {
 			return querySql(condition);
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -118,17 +124,22 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		return addBatch(Arrays.asList(d)) > 0;
 	}
 	@Override
-	public int addBatch(List<D> ds) {
+	public int addBatch(Collection<D> ds) {
 		try {
 			return insertSql(ds);
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
 	
 	@Override
 	public long getLastAddId() {
-		return jdbcTemplate.queryForObject("select last_insert_id()", long.class);
+		try {
+			Long id = remoteTransactionalHandler.remoteExecQ("select last_insert_id()", null, null, long.class);
+			if (id == null) {return jdbcTemplate.queryForObject("select last_insert_id()", long.class);} else {return id;}
+		} catch (Throwable e) {
+			throw new RuntimeException(e);
+		}
 	}
 	
 	@Override
@@ -143,8 +154,9 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			List<Object> dtoValues = whereCondition(condition, fields, sb);
 			
 			/*执行删除*/
-			return jdbcTemplate.update(sb.toString(), dtoValues.toArray()) > 0;
-		} catch (Exception e) {
+			Integer execU = remoteTransactionalHandler.remoteExecU(sb.toString(), dtoValues);
+			if (execU == null) {return jdbcTemplate.update(sb.toString(), dtoValues.toArray()) > 0;} else {return execU > 0;}
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
@@ -167,14 +179,15 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			dtoValues.addAll(whereCondition(condition, fields, sb));
 			
 			/*执行更新*/
-			return jdbcTemplate.update(sb.toString(), dtoValues.toArray()) > 0;
-		} catch (Exception e) {
+			Integer execU = remoteTransactionalHandler.remoteExecU(sb.toString(), dtoValues);
+			if (execU == null) {return jdbcTemplate.update(sb.toString(), dtoValues.toArray()) > 0;} else {return execU > 0;}
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
 	
 	@Override
-	public int updateBatch(Condition condition, List<D> dtos, boolean isUpdateNull) {
+	public int updateBatch(Condition condition, Collection<D> dtos, boolean isUpdateNull) {
 		try {
 			if (condition.getParams().size() == 0) {throw new IllegalArgumentException("批量更新不允许无条件执行！");}
 			/*字段映射*/
@@ -194,14 +207,15 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			dtoValues.addAll(whereCondition(condition, dtos, sb, fields));
 			
 			/*执行更新*/
-			return jdbcTemplate.update(sb.toString(), dtoValues.toArray());
-		} catch (Exception e) {
+			Integer execU = remoteTransactionalHandler.remoteExecU(sb.toString(), dtoValues);
+			if (execU == null) {return jdbcTemplate.update(sb.toString(), dtoValues.toArray());} else {return execU;}
+		} catch (Throwable e) {
 			throw new RuntimeException(e);
 		}
 	}
 	
 	/* 获取批量更新条件 */
-	private List<Object> whereCondition(Condition condition, List<D> ds, StringBuilder sb, Map<String, String> fields) throws Exception {
+	private List<Object> whereCondition(Condition condition, Collection<D> ds, StringBuilder sb, Map<String, String> fields) throws Exception {
 		List<Object> dtoValues = new ArrayList<>();
 		sb.append(" where 1 = 1 ");
 		
@@ -259,7 +273,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	}
 	
 	/*更新参数*/
-	private List<Object> updatePameras(Map<String, String> fields, String paramSql, List<D> ds, boolean isUpdateNull, List<Field> paramFields, StringBuilder sb) throws Exception {
+	private List<Object> updatePameras(Map<String, String> fields, String paramSql, Collection<D> ds, boolean isUpdateNull, List<Field> paramFields, StringBuilder sb) throws Exception {
 		/*dto字段值*/
 		List<Object> dtoValues = new ArrayList<>();
 		/*追加条件*/
@@ -278,7 +292,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	}
 	
 	/* 获取字段条件sql */
-	private String getFieldWhenSql(String tableField, List<D> ds, Field dtoField, boolean isUpdateNull, String paramSql, List<Field> paramFields, List<Object> dtoValues) throws Exception {
+	private String getFieldWhenSql(String tableField, Collection<D> ds, Field dtoField, boolean isUpdateNull, String paramSql, List<Field> paramFields, List<Object> dtoValues) throws Exception {
 		boolean isAdd = false;
 		StringBuilder sb = new StringBuilder();
 		sb.append(tableField + " = case ");
@@ -313,7 +327,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	}
 	
 	/* 统计 */
-	private int countSql(Condition condition) throws SQLException {
+	private int countSql(Condition condition) throws Throwable {
 		/*字段映射*/
 		Map<String, String> fields = TABLES.get(TABLE.name());
 		/* 查询sql追加 */
@@ -324,8 +338,10 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		/*分组*/
 		if (!CollectionUtils.isEmpty(condition.getGroupBys())) {
 			sb.append(" group by ");
-			for (String groupBy : condition.getGroupBys()) {
-				sb.append("`" + groupBy + "`,");
+			for (GroupBy groupBy : condition.getGroupBys()) {
+				JoinTable joinTable = groupBy.getJoinTable();
+				if (joinTable == null) {sb.append(groupBy.getName() + ",");}
+				else {sb.append(joinTable.getJoinAlias() + "." + joinTable.getJoin().getTableField(groupBy.getName()) + ",");}
 			}
 			sb.delete(sb.length() - 1, sb.length());
 		}
@@ -338,7 +354,8 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		}
 		
 		/*执行统计*/
-		return jdbcTemplate.queryForObject(sql, int.class, dtoValues.toArray());
+		Integer execQ = remoteTransactionalHandler.remoteExecQ(sql, dtoValues, TABLE.dateFormat(), Integer.class);
+		if (execQ == null) {return jdbcTemplate.queryForObject(sql, int.class, dtoValues.toArray());} else {return execQ;}
 	}
 	
 	/* 查询sql追加 */
@@ -376,11 +393,13 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			sb.deleteCharAt(sb.length() - 1);
 		}
 		
-		sb.append(" from `" + TABLE.name() + "` " + TABLE.alias());
+		/* 忽略索引 */
+		String index = StringUtils.hasText(condition.getIgnore()) ? " IGNORE INDEX(" + condition.getIgnore() + ")" : "";
+		sb.append(" from `" + TABLE.name() + "` " + TABLE.alias() + index);
 		for (Join join : condition.getJoins().values()) {
 			Cur cur = join.getCur();
 			if (cur == null || cur.getCurService() == null) {join.setCur(new Cur().setCurService(this));}
-			sb.append(join.toSql());
+			sb.append(join.toSql(join.getIgnore()));
 		}
 		
 		/* 最后追加链表 */
@@ -389,7 +408,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	}
 	
 	/*公共查询实现代码*/
-	private List<D> querySql(Condition condition) throws SQLException {
+	private List<D> querySql(Condition condition) throws Throwable {
 		/*字段映射*/
 		Map<String, String> fields = TABLES.get(TABLE.name());
 		/* 查询sql追加 */
@@ -400,8 +419,10 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		/*分组*/
 		if (!CollectionUtils.isEmpty(condition.getGroupBys())) {
 			sb.append(" group by ");
-			for (String groupBy : condition.getGroupBys()) {
-				sb.append("`" + groupBy + "`,");
+			for (GroupBy groupBy : condition.getGroupBys()) {
+				JoinTable joinTable = groupBy.getJoinTable();
+				if (joinTable == null) {sb.append(groupBy.getName() + ",");}
+				else {sb.append(joinTable.getJoinAlias() + "." + joinTable.getJoin().getTableField(groupBy.getName()) + ",");}
 			}
 			sb.delete(sb.length() - 1, sb.length());
 		}
@@ -410,7 +431,9 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		if (!CollectionUtils.isEmpty(condition.getOrderBys())) {
 			sb.append(" order by ");
 			for (OrderBy orderBy : condition.getOrderBys()) {
-				sb.append("`" + orderBy.getName() + (orderBy.isAsc() ? "` asc," : "` desc,"));
+				JoinTable joinTable = orderBy.getJoinTable();
+				if (joinTable == null) {sb.append(orderBy.getName() + (orderBy.isAsc() ? " asc," : " desc,"));}
+				else {sb.append(joinTable.getJoinAlias() + "." + joinTable.getJoin().getTableField(orderBy.getName()) + (orderBy.isAsc() ? " asc," : " desc,"));}
 			}
 			sb.delete(sb.length() - 1, sb.length());
 		}
@@ -421,10 +444,11 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		}
 		
 		/*执行查询*/
-		return queryResult(jdbcTemplate.queryForList(sb.toString(), dtoValues.toArray()));
+		List<D> execQS = remoteTransactionalHandler.remoteExecQS(sb.toString(), dtoValues, TABLE.dateFormat(), DTO_CLASS);
+		if (execQS == null) {return queryResult(jdbcTemplate.queryForList(sb.toString(), dtoValues.toArray()));} else {return execQS;}
+		
 	}
 	/*查询返回结果*/
-	@SuppressWarnings("unchecked")
 	private List<D> queryResult(List<Map<String, Object>> resultMaps) throws SQLException {
 		List<D> result = new ArrayList<>();
 		for(Map<String, Object> data : resultMaps) {
@@ -433,7 +457,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 						JSONObject.toJSONStringWithDateFormat(data, TABLE.dateFormat(), SerializerFeature.WriteEnumUsingName) :
 						JSONObject.toJSONString(data, SerializerFeature.WriteEnumUsingName);
 			/*将结果map转json后在转对应类对象*/
-			result.add((D) JSONObject.parseObject(dataJsonStr, DTO_CLASS));
+			result.add(JSONObject.parseObject(dataJsonStr, DTO_CLASS));
 		}
 		return result;
 	}
@@ -547,7 +571,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	
 	/*批量添加sql*/
 	@SuppressWarnings("unchecked")
-	private int insertSql(List<D> ds) throws Exception {
+	private int insertSql(Collection<D> ds) throws Throwable {
 		StringBuilder key = new StringBuilder();
 		StringBuilder value = new StringBuilder();
 		
@@ -599,14 +623,15 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	}
 	/* 批量插入并返回插入成功数 - 使用事务会特别快 */
 	@Transactional
-	public int insertBatch(Map<String, List<List<Object>>> parmera) throws SQLException {
+	public int insertBatch(Map<String, List<List<Object>>> parmera) throws Throwable {
 		/*判断是否全部成功*/
 		int successSum = 0;
 		for (Entry<String, List<List<Object>>> pms : parmera.entrySet()) {
 			List<Object[]> dtoValues = pms.getValue().stream().map(v -> v.toArray()).collect(Collectors.toList());
 			
 			/*执行添加*/
-			int[] batchUpdate = jdbcTemplate.batchUpdate(pms.getKey(), dtoValues);
+			int[] batchUpdate = remoteTransactionalHandler.remoteExecBU(pms.getKey(), dtoValues);
+			if (batchUpdate == null) {batchUpdate = jdbcTemplate.batchUpdate(pms.getKey(), dtoValues);}
 			/*追加成功数量*/
 			for (int rs : batchUpdate) {successSum = rs > 0 ? successSum + 1 : successSum;}
 		}
@@ -685,7 +710,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		Class<?> entityClass = getGenericsClass(1);
 		
 		/*扫描配置参数*/
-		Table table = entityClass.getAnnotation(Table.class);
+		Table table = entityClass.getDeclaredAnnotation(Table.class);
 		if (table == null) {throw new NullPointerException(String.format("继承AbstractService后泛型对应的Entity[%s]必须申明@Table注解！", entityClass.getName()));}
 		if(TABLES.containsKey(table.name())) {
 			/* 如果存在类则不初始化 - 否则代表不存在类但是表名相同 */

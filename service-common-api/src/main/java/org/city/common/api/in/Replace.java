@@ -3,6 +3,7 @@ package org.city.common.api.in;
 import java.lang.reflect.Method;
 import java.util.Map.Entry;
 
+import org.city.common.api.in.parse.AuthIsJsonParse;
 import org.city.common.api.util.JsonUtil;
 import org.city.common.api.util.MyUtil;
 import org.springframework.core.env.Environment;
@@ -15,7 +16,7 @@ import com.alibaba.fastjson.JSONObject;
  * @版本 1.0
  * @描述 替换特殊字符接口
  */
-public interface Replace {
+public interface Replace extends AuthIsJsonParse{
 	/**
 	 * @描述 替换values中的特殊字符-${key}取配置与#{key}取方法入参
 	 * @param environment 配置环境
@@ -30,9 +31,9 @@ public interface Replace {
 		JSONObject dataJson = new JSONObject();
 		for (int i = 0, j = datas.length; i < j; i++) {
 			try {
-				/*如果是字符串直接添加，其余转成JsonObject*/
+				/*如果是字符串直接添加，其余验证通过转成JsonObject*/
 				if (datas[i] instanceof String) {dataJson.put(names[i], datas[i]);} 
-				else {dataJson.put(names[i], JSONObject.toJSON(datas[i]));}
+				else if(authParse((datas[i]))) {dataJson.put(names[i], JSONObject.toJSON(datas[i]));}
 			} catch (Exception e) {/* 不能转换的不处理 */}
 		}
 		
