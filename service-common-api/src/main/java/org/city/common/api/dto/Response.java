@@ -1,132 +1,76 @@
 package org.city.common.api.dto;
 
+import org.city.common.api.dto.remote.RemoteConfigDto;
+import org.city.common.api.util.SpringUtil;
 import org.springframework.http.HttpStatus;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
-import lombok.experimental.Accessors;
+import lombok.NoArgsConstructor;
 
 /**
  * @作者 ChengShi
  * @日期 2022-06-21 17:40:23
  * @版本 1.0
- * @描述 统一响应消息
+ * @描述 公共响应
  */
 @Data
-@Accessors(chain = true)
-public class Response {
-	/*标识码*/
+@NoArgsConstructor
+@Schema(description = "公共响应")
+public class Response<R> {
+	private final static String SUCCESS = SpringUtil.getBean(RemoteConfigDto.class).getMsg(); //默认显示成功字符串
+	
+	@Schema(description = "状态码 - 200=OK")
 	private int code = HttpStatus.OK.value();
-	/*数据*/
-	private Object data;
-	/*消息*/
-	private String msg = HttpStatus.OK.getReasonPhrase();
+	
+	@Schema(description = "数据")
+	private R data;
+	
+	@Schema(description = "消息")
+	private String msg = SUCCESS;
 	
 	/**
-	 * @描述 是否成功请求
-	 * @return true为成功请求
+	 * @param data 成功数据（code=200）
 	 */
-	public boolean isOk() {return HttpStatus.OK.value() == code;}
-	
-	/**
-	 * @描述 成功请求
-	 * @return 成功对象
-	 */
-	public static Response ok() {
-		return new Response();
+	public Response(R data) {
+		this.data = data;
 	}
 	
 	/**
-	 * @描述 成功请求
-	 * @param data 成功数据
-	 * @return 成功对象
+	 * @param errorMsg 错误信息（code=500）
 	 */
-	public static Response ok(Object data) {
-		return new Response().setData(data);
+	public Response(String errorMsg) {
+		this.code = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		this.msg = errorMsg;
 	}
 	
 	/**
-	 * @描述 成功请求
-	 * @param data 成功数据
-	 * @param msg 成功信息
-	 * @return 成功对象
+	 * @param errorMsg 错误信息（code=500）
+	 * @param errorData 错误数据
 	 */
-	public static Response ok(Object data, String msg) {
-		return new Response().setMsg(msg).setData(data);
+	public Response(String errorMsg, R errorData) {
+		this.code = HttpStatus.INTERNAL_SERVER_ERROR.value();
+		this.msg = errorMsg;
+		this.data = errorData;
 	}
 	
 	/**
-	 * @描述 响应默认错误信息
-	 * @return 错误对象
+	 * @param code 状态码
+	 * @param msg 消息
 	 */
-	public static Response error() {
-		return new Response()
-				.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
-				.setMsg(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
+	public Response(int code, String msg) {
+		this.code = code;
+		this.msg = msg;
 	}
 	
 	/**
-	 * @描述 响应指定错误信息
-	 * @param 错误消息
-	 * @return 错误对象
+	 * @param code 状态码
+	 * @param msg 消息
+	 * @param data 数据
 	 */
-	public static Response error(String msg) {
-		return new Response()
-				.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
-				.setMsg(msg);
-	}
-	
-	/**
-	 * @描述 响应默认错误信息
-	 * @param data 错误数据
-	 * @return 错误对象
-	 */
-	public static Response error(Object data) {
-		return new Response()
-				.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
-				.setMsg(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase())
-				.setData(data);
-	}
-	
-	/**
-	 * @描述 响应指定的错误信息
-	 * @param code 错误码
-	 * @param msg 错误消息
-	 * @return 错误对象
-	 */
-	public static Response error(int code, String msg) {
-		return new Response().setCode(code).setMsg(msg);
-	}
-	
-	/**
-	 * @描述 响应指定的错误信息
-	 * @param data 错误数据
-	 * @param msg 错误消息
-	 * @return 错误对象
-	 */
-	public static Response error(Object data, String msg) {
-		return new Response().setData(data).setMsg(msg)
-				.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
-	}
-	
-	/**
-	 * @描述 响应默认错误信息
-	 * @param code 错误码
-	 * @param data 错误数据
-	 * @return 错误对象
-	 */
-	public static Response error(int code, Object data) {
-		return new Response().setCode(code).setData(data)
-				.setMsg(HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase());
-	}
-	
-	/**
-	 * @描述 响应默认错误信息
-	 * @param code 错误码
-	 * @param data 错误数据
-	 * @param msg 错误消息
-	 * @return 错误对象
-	 */
-	public static Response error(int code, Object data, String msg) {
-		return new Response().setCode(code).setData(data).setMsg(msg);
+	public Response(int code, String msg, R data) {
+		this.code = code;
+		this.msg = msg;
+		this.data = data;
 	}
 }
