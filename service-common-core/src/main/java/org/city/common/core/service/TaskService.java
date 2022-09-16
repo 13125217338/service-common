@@ -1,10 +1,13 @@
 package org.city.common.core.service;
 
-import org.city.common.core.task.Runnable;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
+import org.city.common.api.dto.remote.RemoteConfigDto;
+import org.city.common.api.in.Runnable;
 import org.city.common.core.task.Task;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
 
 /**
  * @作者 ChengShi
@@ -13,60 +16,52 @@ import org.springframework.web.context.request.RequestContextHolder;
  * @描述 任务实现
  */
 @Service
-public final class TaskService implements org.city.common.api.in.Task{
-	/* 任务池 */
-	private final Task TASK = new Task(10, 20, Integer.MAX_VALUE, 0);
+public final class TaskService implements org.city.common.api.in.Task {
+	private final RemoteConfigDto REMOTE_CONFIG; //配置信息
+	private final Task TASK; //任务池
+	@Autowired
+	public TaskService(RemoteConfigDto remoteConfigDto) {
+		REMOTE_CONFIG = remoteConfigDto;
+		TASK = new Task(10, REMOTE_CONFIG.getTaskThread(), REMOTE_CONFIG.getTaskThread() * 2000, 0);
+	}
 	
 	@Override
-	public void putTask(org.city.common.api.in.Runnable run) {
-		final RequestAttributes request = getRequest();
-		TASK.PutTask(new Runnable() {
-			@Override
-			public void run() throws Throwable {
-				RequestContextHolder.setRequestAttributes(request);
-				run.run();
-			}
-		});
+	public void putTask(Runnable run) {
+		TASK.PutTask(run);
 	}
 	@Override
-	public void putTaskSys(org.city.common.api.in.Runnable run, long timeout) throws Exception {
-		final RequestAttributes request = getRequest();
-		TASK.PutTaskSys(new Runnable() {
-			@Override
-			public void run() throws Throwable {
-				RequestContextHolder.setRequestAttributes(request);
-				run.run();
-			}
-		}, timeout);
+	public <T> T putTaskSys(String masterId, long timeout, Supplier<T> sub, Function<Object, Object> master) throws Throwable {
+		return TASK.PutTaskSys(masterId, timeout, sub, master);
 	}
-
 	@Override
-	public void schedula(String id, org.city.common.api.in.Runnable task, String baseTime, long timeout, boolean isFrist) {
-		final RequestAttributes request = getRequest();
-		TASK.Schedula(id, new Runnable() {
-			@Override
-			public void run() throws Throwable {
-				RequestContextHolder.setRequestAttributes(request);
-				task.run();
-			}
-		}, baseTime, timeout, isFrist);
+	public <T> T runMaster(String masterId, long timeout, Object masterParam, Supplier<T> notExist) throws Throwable {
+		return TASK.runMaster(masterId, timeout, masterParam, notExist);
+	}
+	
+	@Override
+	public void schedula(String id, Runnable task, Supplier<String> expression, boolean isFrist) {
+		TASK.Schedula(id, task, expression, isFrist);
 	}
 	@Override
 	public void NotifySchedula(String id) {
 		TASK.getSchedula(id).Notify();
 	}
 	@Override
+	public void flushSchedula(String id) {
+		TASK.getSchedula(id).flush();
+	}
+	@Override
 	public long getSchedulaOddTime(String id) {
 		return TASK.getSchedula(id).getOddTime();
 	}
+	
 	@Override
-	public void resetSchedulaTimeout(String id, String baseTime, long timeout) {
-		TASK.getSchedula(id).setTimeout(baseTime, timeout);
+	public void setImport() {
+		TASK.setImport();
 	}
 	
-	/* 获取当前请求属性 */
-	private RequestAttributes getRequest() {
-		try {return RequestContextHolder.currentRequestAttributes();}
-		catch (Exception e) {return null;}
+	@Override
+	public org.city.common.api.in.Task cloneTask() {
+		return new TaskService(REMOTE_CONFIG);
 	}
 }

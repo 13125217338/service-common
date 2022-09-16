@@ -8,14 +8,14 @@ import java.lang.reflect.Field;
  * @版本 1.0
  * @描述 自定义格式化字段值
  */
-public interface FormatFieldValue {
+public interface FormatFieldValue<R> {
 	/**
 	 * @描述 自定义格式化
-	 * @param field 待格式字段
-	 * @param fieldVal 原字段值
-	 * @param fixVal 自定义固定值
-	 * @return 格式化结果
-	 * @throws Exception
+	 * @param orgin 原数据对象
+	 * @param field 待格式化字段
+	 * @param values 已被替换的自定义参数
+	 * @return 格式化后的字段值
+	 * @throws Throwable
 	 */
-	public Object format(Field field, Object fieldVal, int fixVal) throws Exception;
+	public R format(Object orgin, Field field, String[] values) throws Throwable;
 }

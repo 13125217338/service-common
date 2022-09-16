@@ -10,14 +10,14 @@ import java.lang.annotation.Target;
  * @作者 ChengShi
  * @日期 2022-07-19 09:32:58
  * @版本 1.0
- * @描述 多个条件注解（针对getNotEmpty方法配套使用）
+ * @描述 条件注解（针对[getNotEmpty]方法配套使用）
  */
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface Conditions {
 	/**
-	 * @描述 多个条件注解
+	 * @描述 多个条件
 	 */
 	public Condition[] value();
 }

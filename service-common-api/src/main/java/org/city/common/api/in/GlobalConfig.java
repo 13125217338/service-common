@@ -1,7 +1,8 @@
 package org.city.common.api.in;
 
-import org.city.common.api.adapter.ExtensionIOAdapter;
-import org.springframework.context.ApplicationContext;
+import java.lang.reflect.Method;
+
+import org.city.common.api.dto.remote.RemoteMethodDto;
 
 /**
  * @作者 ChengShi
@@ -11,9 +12,10 @@ import org.springframework.context.ApplicationContext;
  */
 public interface GlobalConfig {
 	/**
-	 * @描述 初始化配置
-	 * @param applicationContext 应用上下文
-	 * @throws Exception
+	 * @描述 获取远程方法参数
+	 * @param cls 待获取类
+	 * @param method 待获取方法
+	 * @return 远程方法参数
 	 */
-	public ExtensionIOAdapter init(ApplicationContext applicationContext) throws Exception;
+	public RemoteMethodDto getRemoteMethod(Class<?> cls, Method method);
 }
