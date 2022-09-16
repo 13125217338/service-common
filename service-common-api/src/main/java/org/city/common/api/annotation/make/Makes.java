@@ -19,5 +19,5 @@ public @interface Makes {
 	/**
 	 * @描述 多个操作执行
 	 */
-	public MakeInvoke[] value() default {};
+	public Make[] value() default {};
 }

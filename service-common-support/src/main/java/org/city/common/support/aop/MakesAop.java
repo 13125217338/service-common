@@ -1,24 +1,30 @@
 package org.city.common.support.aop;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.city.common.api.annotation.make.MakeInvoke;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.city.common.api.annotation.make.Make;
 import org.city.common.api.annotation.make.Makes;
-import org.city.common.api.constant.CommonConstant;
-import org.city.common.api.in.Replace;
+import org.city.common.api.dto.MakeDto;
+import org.city.common.api.exception.SkipException;
 import org.city.common.api.in.MakeInvoke.Process;
 import org.city.common.api.in.parse.JSONParser;
+import org.city.common.api.in.util.Replace;
+import org.city.common.api.util.SpringUtil;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.DependsOn;
 import org.springframework.core.LocalVariableTableParameterNameDiscoverer;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -30,55 +36,55 @@ import org.springframework.stereotype.Component;
  */
 @Aspect
 @Component
-@DependsOn(CommonConstant.PLUG_UTIL_NAME)
-public class MakesAop implements Replace,JSONParser{
+@Order(Byte.MAX_VALUE)
+public class MakesAop implements Replace,JSONParser {
 	@Autowired
 	private Environment environment;
-	@Autowired
-	private ApplicationContext applicationContext;
 	
-	@Around("@annotation(makes)")
-	public Object makesAround(ProceedingJoinPoint jp, Makes makes) throws Throwable {
-		Class<?> target = jp.getTarget().getClass();
-		Method method = null;
-		/* 获取实现类的方法 */
-		for (Method mth : target.getDeclaredMethods()) {if (mth.getName().equals(jp.getSignature().getName())) {method = mth; break;}}
-		if (method == null) {throw new NullPointerException(String.format("未找到被拦截的方法[%s]，类名[%s]", jp.getSignature().getName(), target.getName()));}
-		
+	@Around("@annotation(org.city.common.api.annotation.make.Makes)")
+	public Object makesAround(ProceedingJoinPoint jp) throws Throwable {
+		Method method = ((MethodSignature) jp.getSignature()).getMethod();
 		/* 执行操作 */
-		return makeInvoke(jp, makes, method);
+		return makeInvoke(jp, method.getDeclaredAnnotation(Makes.class), method);
 	}
-
+	
 	/* 操作执行 */
 	private Object makeInvoke(ProceedingJoinPoint jp, Makes makes, Method method) throws Throwable {
-		/*获取参数真实名称*/
+		/* 获取参数真实名称 */
 		LocalVariableTableParameterNameDiscoverer discoverer = new LocalVariableTableParameterNameDiscoverer();
 		String[] names = discoverer.getParameterNames(method);
 		
 		/* 所有可以执行的操作 */
-		Map<org.city.common.api.in.MakeInvoke, String[]> invokes = new LinkedHashMap<>();
-		for (MakeInvoke makeInvoke : makes.value()) {
-			if (makeInvoke.invoke() != org.city.common.api.in.MakeInvoke.class) {
+		Map<MakeDto, org.city.common.api.in.MakeInvoke> invokes = new LinkedHashMap<>();
+		for (Make make : makes.value()) {
+			if (make.invoke() != org.city.common.api.in.MakeInvoke.class) {
 				/* 替换自定义参数 */
-				String[] values = makeInvoke.values();
-				replaceVals(environment, values, jp.getArgs(), names);
+				String[] values = make.values();
+				replaceVals(environment, values, jp.getTarget(), jp.getArgs(), names);
 				/* 添加解析操作 */
-				invokes.put(applicationContext.getBean(makeInvoke.invoke()), values);
+				invokes.put(new MakeDto(make, values), SpringUtil.getBean(make.invoke()));
 			}
 		}
 		/* 如果没有操作 */
-		if (invokes.size() == 0) {return jp.proceed(jp.getArgs());}
+		if (invokes.size() == 0) {return jp.proceed();}
 		
-		/* 执行器 */
-		Process process = new org.city.common.api.in.MakeInvoke.Process() {
-			/*执行链路*/
-			private LinkedList<Class<? extends org.city.common.api.in.MakeInvoke>> Makes = new LinkedList<>();
+		/* 原方法结束时回调 */
+		final List<org.city.common.api.in.Runnable> afters = new ArrayList<>(invokes.size());
+		final Process process = new Process() { //执行器
+			/* 所有可以执行的操作 */
+			private final Iterator<Entry<MakeDto, org.city.common.api.in.MakeInvoke>> INVOKES = invokes.entrySet().iterator();
+			/* 自定义参数 */
+			private final Map<String, Object> PARAM = new HashMap<>();
+			/* 执行链路 */
+			private final LinkedHashMap<MakeDto, org.city.common.api.in.MakeInvoke> MAKES = new LinkedHashMap<>();
 			/* 是否错误执行 */
 			private boolean isError = false;
-			/* 是否执行过 */
+			/* 是否执行过原方法 */
 			private boolean isExcute = false;
 			/* 是否设置过返回值 */
 			private boolean isSetReturn = false;
+			/* 是否结束链路执行 */
+			private boolean isEnd = false;
 			/* 返回值 */
 			private Object returnVal = null;
 			/* 初始执行 */
@@ -86,55 +92,76 @@ public class MakesAop implements Replace,JSONParser{
 			
 			@Override
 			public Object process() throws Throwable {
-				if (this.isError) {return null;}
+				return process(null);
+			}
+			@Override
+			public Object process(Object[] args) throws Throwable {
+				if (isError) {return null;}
 				else {
-					this.isExcute = true;
-					return jp.proceed(jp.getArgs());
+					isExcute = true;
+					return args == null ? jp.proceed() : jp.proceed(args);
 				}
+			}
+			@Override
+			public boolean nextInvoke() throws Throwable {
+				if (isEnd) {return false;} //提前结束链路执行
+				boolean hasNext = INVOKES.hasNext();
+				if (!hasNext) {return false;} //已无操作
+				
+				/* 使用链路顺序执行 */
+				Entry<MakeDto, org.city.common.api.in.MakeInvoke> next = INVOKES.next();
+				next.getValue().invoke(this, next.getKey().getMake().value(), next.getKey().getValues());
+				MAKES.put(next.getKey(), next.getValue()); //添加执行后的操作
+				
+				/* 返回下一个结果 */
+				return INVOKES.hasNext();
 			}
 			@Override
 			public void setReturn(Object returnVal) {
-				/* 判断是否进行转换 */
-				if(this.isSetReturn && returnVal != null && (this.returnVal == null || this.returnVal.getClass() != returnVal.getClass())) {
-					this.returnVal = parse(returnVal, method.getGenericReturnType());
-				} else {this.returnVal = returnVal;}
-				this.isSetReturn = true;
+				this.returnVal = returnVal;
+				isSetReturn = true;
 			}
 			@Override
-			public boolean isSetReturn() {return this.isSetReturn;}
+			public void addAfter(org.city.common.api.in.Runnable after) {afters.add(after);}
+			@Override
+			public boolean isSetReturn() {return isSetReturn;}
+			@Override
+			public boolean isExcute() {return isExcute;}
+			@Override
+			public void end() {isEnd = true;}
 			@Override
 			public Object getTarget() {return jp.getTarget();}
 			@Override
-			public Object getReturn() {return this.returnVal;}
+			public Object getReturn() {return returnVal;}
 			@Override
 			public Method getMethod() {return method;}
 			@Override
-			public LinkedList<Class<? extends org.city.common.api.in.MakeInvoke>> getMakes() {return Makes;}
+			public LinkedHashMap<MakeDto, org.city.common.api.in.MakeInvoke> getMakes() {return MAKES;}
+			@Override
+			public Map<MakeDto, org.city.common.api.in.MakeInvoke> getAllMakes() {return invokes;}
 			@Override
 			public Object[] getArgs() {return jp.getArgs();}
+			@Override
+			public void setParam(String key, Object value) {PARAM.put(key, value);}
+			@Override
+			public <T> T getParam(String key, Type type) {return parse(PARAM.get(key), type);}
 			
 			/* 初始执行 */
 			private void init() throws Throwable {
-				/* 开始执行 */
-				try {
-					for (Entry<org.city.common.api.in.MakeInvoke, String[]> entry : invokes.entrySet()) {
-						/* 执行方法 */
-						entry.getKey().invoke(this, entry.getValue());
-						if (this.isExcute) {Makes.add(entry.getKey().getClass());}
-						this.isExcute = false;
-					}
-				} catch (Throwable e) {
-					this.isError = true;
-					/* 执行异常 */
-					for (Entry<org.city.common.api.in.MakeInvoke, String[]> entry : invokes.entrySet()) {
-						entry.getKey().throwable(this, e, entry.getValue());
-					}
-					/* 抛出当前异常错误 */
-					throw e;
+				try {while (nextInvoke());} //顺序执行操作
+				catch (Throwable e) {
+					if (e instanceof SkipException) {throw e;} //跳过异常则不处理该异常
+					isError = true; //标记为异常
+					invokes.forEach((k, v) -> {try {v.throwable(this, e, k.getMake().value(), k.getValues());} catch (Throwable e2) {}}); //顺序执行异常
+					throw e; //抛出当前异常
 				}
 			}
 		};
-		/* 最后的返回值 */
-		return process.isSetReturn() ? process.getReturn() : process.process();
+		
+		/* 最后的返回值 - 如果没有设置过返回值 - 则会自动执行原方法 */
+		Object returnVal = process.isSetReturn() ? parse(process.getReturn(), method.getGenericReturnType()) : process.process();
+		/* 原方法结束时回调 - 顺序执行所有添加过回调钩子的方法逻辑 */
+		for (org.city.common.api.in.Runnable after : afters) {after.run();}
+		return returnVal; //回调结束后返回结果
 	}
 }
