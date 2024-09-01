@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -39,6 +40,7 @@ import org.city.common.api.in.interceptor.SqlInterceptor;
 import org.city.common.api.in.parse.JSONParser;
 import org.city.common.api.in.sql.AnnotationCondition;
 import org.city.common.api.in.sql.Crud;
+import org.city.common.api.in.sql.MyDataSource;
 import org.city.common.api.util.FieldUtil;
 import org.city.common.api.util.MyUtil;
 import org.city.common.api.util.SpringUtil;
@@ -67,21 +69,24 @@ import lombok.extern.slf4j.Slf4j;
 public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> implements Crud<D>,JSONParser {
 	/* 存储所有继承该类的表信息 */
 	private final static Map<String, LinkedHashMap<String, String>> TABLES = new HashMap<>(8);
-	/* 用于记录是否存在过当前实体类 */
-	private final static Set<Class<?>> RECORD = new HashSet<>();
-	/* 根据数据源自动选择模板 */
-	private JdbcTemplate jdbcTemplate;
+	/* 存储所有数据源对应模板 */
+	private final static Map<DataSource, JdbcTemplate> JDBC_TEMPLATES = new ConcurrentHashMap<>();
+	/* 默认数据源对应模板 */
+	private final static JdbcTemplate DEFAULT_JDBC_TEMPLATE = SpringUtil.getBean(JdbcTemplate.class);
+	/* 自定义拦截器 */
 	@Autowired(required = false)
 	private List<SqlInterceptor> sqlInterceptors;
 	/* dto类型 */
 	@SuppressWarnings("unchecked")
 	private final Class<D> DTO_CLASS = (Class<D>) getGenericsClass(0);
-	/* 非基本类型字段 - 对象字段 */
-	private final Map<String, Field> SUB_FIELD = new HashMap<>();
 	/* dto字段名对应字段 */
 	private final Map<String, Field> DTO_FIELD = FieldUtil.getAllDeclaredField(DTO_CLASS, true);
+	/* 非基本类型字段 - 对象字段 */
+	private final Map<String, Field> SUB_FIELD = new HashMap<>();
 	/* 该实体类注解 */
 	private final Table TABLE = setTable();
+	/* 我的数据源 */
+	private final MyDataSource MY_DATA_SOURCE = getMyDataSource();
 	/* 空字符 */
 	private final String NULLSTR = "";
 	/* 英文逗号 */
@@ -109,22 +114,23 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		try {return exec.get();} finally {interceptor(sqlType, sql, param, (System.currentTimeMillis() - recordTime));}
 	}
 	/* 获取Sql模板 */
-	private JdbcTemplate getJdbcTemplate() {
-		if (jdbcTemplate == null) {
-			synchronized (this) {
-				if (jdbcTemplate == null) {
-					if (TABLE.dataSource() == DataSource.class) {jdbcTemplate = SpringUtil.getBean(JdbcTemplate.class);}
-					else {
-						DataSource dataSource = SpringUtil.getBean(TABLE.dataSource());
-						jdbcTemplate = new JdbcTemplate(dataSource);
-					}
-					/* 设置分组长度 */
-					jdbcTemplate.execute("set global group_concat_max_len=" + Integer.MAX_VALUE);
-					jdbcTemplate.execute("set session group_concat_max_len=" + Integer.MAX_VALUE);
-				}
-			}
-		}
-		return jdbcTemplate;
+	private JdbcTemplate getJdbcTemplate(boolean write) {
+		return MY_DATA_SOURCE == null ? DEFAULT_JDBC_TEMPLATE : JDBC_TEMPLATES.computeIfAbsent(MY_DATA_SOURCE.getDataSource(write), dataSource -> {
+			JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+			jdbcTemplate.execute("set global group_concat_max_len=" + Integer.MAX_VALUE);
+			jdbcTemplate.execute("set session group_concat_max_len=" + Integer.MAX_VALUE);
+			return jdbcTemplate;
+		});
+	}
+	/* 获取我的数据源 */
+	private MyDataSource getMyDataSource() {
+		List<? extends MyDataSource> myDataSources = SpringUtil.getBeans(TABLE.dataSource());
+		Assert.isTrue(myDataSources.size() < 2, String.format("实体类[%s]对应数据源有多个实现！", TABLE.name()));
+		if (myDataSources.isEmpty()) { //默认数据源
+			DEFAULT_JDBC_TEMPLATE.execute("set global group_concat_max_len=" + Integer.MAX_VALUE);
+			DEFAULT_JDBC_TEMPLATE.execute("set session group_concat_max_len=" + Integer.MAX_VALUE);
+			return null;
+		} else {return myDataSources.iterator().next();} //自定义数据源
 	}
 	
 	@Override
@@ -177,7 +183,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		dtoValues.addAll(whereCondition(condition, fields, sb));
 		
 		/* 先分组 */
-		if (hasGroup) {groupBy(condition, sb, groups);}
+		if (hasGroup) {groupBy(condition, sb, groups, dtoValues);}
 		/* 在排序 */
 		if (hasOrder) {orderBy(condition, sb, orders);}
 		
@@ -262,7 +268,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			if (!TransactionSynchronizationManager.isActualTransactionActive()) {throw new NoTransactionException("请在事务中执行该方法！");}
 			/* 获取自增主键 */
 			final String sql = "select last_insert_id()";
-			Long result = execSql(SqlType.SELECT, sql, null, () -> getJdbcTemplate().queryForObject(sql, Long.class));
+			Long result = execSql(SqlType.SELECT, sql, null, () -> getJdbcTemplate(false).queryForObject(sql, Long.class));
 			if (result == null) {throw new NullPointerException("无自增主键！");} else {return result.longValue();}
 		} catch (Throwable e) {
 			throw new DataAccessResourceFailureException("查询自增主键Sql执行失败！", e);
@@ -282,7 +288,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			
 			/* 执行删除 */
 			final String sql = sb.toString();
-			return execSql(SqlType.DELETE, sql, dtoValues, () -> getJdbcTemplate().update(sql, dtoValues.toArray()));
+			return execSql(SqlType.DELETE, sql, dtoValues, () -> getJdbcTemplate(true).update(sql, dtoValues.toArray()));
 		} catch (Throwable e) {
 			throw new DataAccessResourceFailureException("删除Sql执行失败！", e);
 		}
@@ -308,7 +314,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			
 			/* 执行更新 */
 			final String sql = sb.toString();
-			return execSql(SqlType.UPDATE, sql, dtoValues, () -> getJdbcTemplate().update(sql, dtoValues.toArray()) > 0);
+			return execSql(SqlType.UPDATE, sql, dtoValues, () -> getJdbcTemplate(true).update(sql, dtoValues.toArray()) > 0);
 		} catch (Throwable e) {
 			throw new DataAccessResourceFailureException("更新Sql执行失败！", e);
 		}
@@ -353,7 +359,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			
 			/* 执行更新 */
 			final String sql = sb.toString();
-			return execSql(SqlType.UPDATE, sql, dtoValues, () -> getJdbcTemplate().update(sql, dtoValues.toArray()));
+			return execSql(SqlType.UPDATE, sql, dtoValues, () -> getJdbcTemplate(true).update(sql, dtoValues.toArray()));
 		} catch (Throwable e) {
 			throw new DataAccessResourceFailureException("批量更新Sql执行失败！", e);
 		}
@@ -361,17 +367,17 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	
 	@Override
 	public int update(String sql) {
-		try {return execSql(SqlType.UPDATE, sql, null, () -> getJdbcTemplate().update(sql));}
+		try {return execSql(SqlType.UPDATE, sql, null, () -> getJdbcTemplate(true).update(sql));}
 		catch (Throwable e) {throw new DataAccessResourceFailureException("手动更新Sql执行失败！", e);}
 	}
 	@Override
 	public void execute(String sql) {
-		try {execSql(SqlType.EXECUTE, sql, null, () -> {getJdbcTemplate().execute(sql); return null;});}
+		try {execSql(SqlType.EXECUTE, sql, null, () -> {getJdbcTemplate(true).execute(sql); return null;});}
 		catch (Throwable e) {throw new DataAccessResourceFailureException("手动执行Sql失败！", e);}
 	}
 	@Override
 	public <T> T queryOne(String sql, Class<T> type) {
-		try {return execSql(SqlType.SELECT, sql, null, () -> getJdbcTemplate().queryForObject(sql, type));}
+		try {return execSql(SqlType.SELECT, sql, null, () -> getJdbcTemplate(false).queryForObject(sql, type));}
 		catch (Throwable e) {throw new DataAccessResourceFailureException("手动查询Sql执行失败！", e);}
 	}
 	
@@ -406,7 +412,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		appendFkh(sb);
 		
 		/* 最后追加条件 */
-		sb.append(getSqlWhere(condition.getBaseDto()));
+		sb.append(getSqlWhere(condition.getBaseDto(), dtoValues));
 		return dtoValues;
 	}
 	
@@ -486,18 +492,18 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		
 		/* 分组 */
 		if (hasGroup) {
-			groupBy(condition, sb, groups);
+			groupBy(condition, sb, groups, dtoValues);
 			/* 对原来的sql外部包一层 */
 			sb = new StringBuilder("select count(1) from (" + sb.toString() + ") t");
 		}
 		
 		/* 执行统计 */
 		final String sql = sb.toString();
-		return execSql(SqlType.SELECT, sql, dtoValues, () -> getJdbcTemplate().queryForObject(sql, long.class, dtoValues.toArray()));
+		return execSql(SqlType.SELECT, sql, dtoValues, () -> getJdbcTemplate(false).queryForObject(sql, long.class, dtoValues.toArray()));
 	}
 	
 	/* 分组 */
-	private void groupBy(Condition condition, StringBuilder sb, Map<GroupBy, String> groups) {
+	private void groupBy(Condition condition, StringBuilder sb, Map<GroupBy, String> groups, List<Object> dtoValues) {
 		sb.append(" group by ");
 		/* 处理所有分组 */
 		for (Entry<GroupBy, String> entry : groups.entrySet()) {
@@ -506,7 +512,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		/* 删除最后的逗号 */
 		sb.deleteCharAt(sb.length() - 1);
 		/* 最后追加分组条件 */
-		sb.append(getSqlHaving(condition.getBaseDto()));
+		sb.append(getSqlHaving(condition.getBaseDto(), dtoValues));
 	}
 	/* 处理分组 */
 	private Map<GroupBy, String> handlerGroupBy(Condition condition) {
@@ -661,7 +667,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			sb.append(join.toSql(join.getIgnore(), this, dtoValues));
 		}
 		/* 最后追加链表 */
-		sb.append(getSqlJoin(condition.getBaseDto()));
+		sb.append(getSqlJoin(condition.getBaseDto(), dtoValues));
 		return sb;
 	}
 	/* 获取分组排序 */
@@ -711,7 +717,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		SubCondition subCondition = findBySubCondition(condition, false);
 		/* 执行查询 */
 		final String sql = subCondition.getSql();
-		return execSql(SqlType.SELECT, sql, subCondition.getParams(), () -> queryResult(getJdbcTemplate().queryForList(sql, subCondition.getParams().toArray())));
+		return execSql(SqlType.SELECT, sql, subCondition.getParams(), () -> queryResult(getJdbcTemplate(false).queryForList(sql, subCondition.getParams().toArray())));
 	}
 	/* 查询返回结果 */
 	private List<D> queryResult(List<Map<String, Object>> resultMaps) {
@@ -787,11 +793,11 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			sb.delete(0, 4).insert(0, " where ");
 			/* 最后如果是or要追加结束括号 */
 			if (isKH) {sb.append(")");}
-			/* 最后追加条件 */
-			sb.append(getSqlWhere(condition.getBaseDto()));
+			/* 最后追加自定义条件 */
+			sb.append(getSqlWhere(condition.getBaseDto(), dtoValues));
 		} else {
 			/* 无参数条件且有自定义条件 - 手动where */
-			String sqlWhere = getSqlWhere(condition.getBaseDto());
+			String sqlWhere = getSqlWhere(condition.getBaseDto(), dtoValues).trim();
 			if (sqlWhere.startsWith("and")) {sb.append("where " + sqlWhere.substring(sqlWhere.indexOf("and") + 3));}
 			else if (sqlWhere.startsWith("or")) {sb.append("where " + sqlWhere.substring(sqlWhere.indexOf("or") + 2));}
 		}
@@ -934,7 +940,7 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 			List<Object[]> dtoValues = pms.getValue().stream().map(v -> v.toArray()).collect(Collectors.toList());
 			/* 执行添加 */
 			final String sql = pms.getKey();
-			int[] batchUpdate = execSql(SqlType.INSERT, sql, dtoValues, () -> getJdbcTemplate().batchUpdate(sql, dtoValues));
+			int[] batchUpdate = execSql(SqlType.INSERT, sql, dtoValues, () -> getJdbcTemplate(true).batchUpdate(sql, dtoValues));
 			/* 追加成功数量 */
 			for (int rs : batchUpdate) {successSum = rs > 0 ? successSum + 1 : successSum;}
 		}
@@ -1012,14 +1018,11 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 	private Table setTable() {
 		/* 该类型必须是带泛型类 */
 		Class<?> entityClass = getGenericsClass(1);
-		RECORD.add(entityClass);
-		
 		/* 扫描配置参数 */
 		Table table = entityClass.getDeclaredAnnotation(Table.class);
 		if (table == null) {throw new NullPointerException(String.format("继承AbstractService后泛型对应的Entity[%s]必须申明@Table注解！", entityClass.getName()));}
+		/* 表名重复 */
 		if(TABLES.containsKey(table.name())) {
-			/* 如果存在类则不初始化 - 否则代表不存在类但是表名相同 */
-			if (RECORD.contains(entityClass)) {return table;}
 			throw new IllegalArgumentException(String.format("存在该表名[%s]，请修改[%s]类下的表名！", table.name(), entityClass.getName()));
 		}
 		
@@ -1068,19 +1071,28 @@ public abstract class AbstractService<D extends BaseDto, E extends BaseEntity> i
 		else {return baseDto.getUserSqlDto().getFields();}
 	}
 	/* 获取自定义连接Sql */
-	private String getSqlJoin(BaseDto baseDto) {
+	private String getSqlJoin(BaseDto baseDto, List<Object> dtoValues) {
 		if (baseDto.getUserSqlDto() == null || baseDto.getUserSqlDto().getJoin() == null) {return NULLSTR;}
-		else {return " " + baseDto.getUserSqlDto().getJoin();}
+		else {
+			dtoValues.addAll(baseDto.getUserSqlDto().getJoinParam());
+			return " " + baseDto.getUserSqlDto().getJoin();
+		}
 	}
 	/* 获取自定义条件Sql */
-	private String getSqlWhere(BaseDto baseDto) {
+	private String getSqlWhere(BaseDto baseDto, List<Object> dtoValues) {
 		if (baseDto.getUserSqlDto() == null || baseDto.getUserSqlDto().getWhere() == null) {return NULLSTR;}
-		else {return " " + baseDto.getUserSqlDto().getWhere();}
+		else {
+			dtoValues.addAll(baseDto.getUserSqlDto().getWhereParam());
+			return " " + baseDto.getUserSqlDto().getWhere();
+		}
 	}
 	/* 获取自定义分组条件Sql */
-	private String getSqlHaving(BaseDto baseDto) {
+	private String getSqlHaving(BaseDto baseDto, List<Object> dtoValues) {
 		if (baseDto.getUserSqlDto() == null || baseDto.getUserSqlDto().getHaving() == null) {return NULLSTR;}
-		else {return " having " + baseDto.getUserSqlDto().getHaving();}
+		else {
+			dtoValues.addAll(baseDto.getUserSqlDto().getHavingParam());
+			return " having " + baseDto.getUserSqlDto().getHaving();
+		}
 	}
 	
 	/* 获取表字段参数 */

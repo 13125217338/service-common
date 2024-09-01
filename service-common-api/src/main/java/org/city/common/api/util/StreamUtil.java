@@ -142,7 +142,7 @@ public final class StreamUtil {
 	 */
 	public static void writeByRange(InputStream in, long total, HttpServletResponse response) {
 		try {
-			String range = HeaderUtil.getHeaderVal("Range"); //断点标志
+			String range = HeaderUtil.getValue("Range"); //断点标志
 			if (range == null) {copy(in, response.getOutputStream());} //不断点直接响应
 			else {
 				String rgBytes = range.substring(range.indexOf("bytes=") + 6);

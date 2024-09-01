@@ -1,7 +1,6 @@
 package org.city.common.api.dto.remote;
 
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Type;
 import java.util.Map;
 
 import org.city.common.api.in.parse.AnnotationParse;
@@ -39,32 +38,5 @@ public class RemoteMethodDto implements TypeParse,AnnotationParse {
 		Map<String, Object> map = annotations.get(annotationClass.getName());
 		if (map == null) {return null;}
 		return parse(map, annotationClass);
-	}
-	
-	/**
-	 * @作者 ChengShi
-	 * @日期 2023-02-23 10:19:39
-	 * @版本 1.0
-	 * @parentClass RemoteMethodDto
-	 * @描述 返回值结果
-	 */
-	@Data
-	@Accessors(chain = true)
-	public static class ReturnResult implements TypeParse {
-		/* 返回值类型 */
-		private String returnType;
-		/* 返回值 */
-		private Object returnValue;
-		
-		/**
-		 * @描述 设置返回值类型
-		 * @param returnType 返回值类型
-		 */
-		public ReturnResult $setReturnType(Type returnType) {this.returnType = returnType.getTypeName(); return this;}
-		/**
-		 * @描述 获取返回值类型
-		 * @return 返回值类型
-		 */
-		public Type $getReturnType() {return forType(returnType);}
 	}
 }

@@ -35,13 +35,13 @@ public class RemoteProxyHandler implements InvocationHandler,Validations {
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {return invoke(method, args, true);}
 	/* 执行方法 */
 	private Object invoke(Method method, Object[] args, boolean isVerify) throws Throwable {
-		RemoteInfo remote = PlugUtil.getRemote(null, getAdapter(), remoteProxyInfo.interfaceCls);
+		RemoteInfo remoteInfo = PlugUtil.getRemote(null, getAdapter(), remoteProxyInfo.interfaceCls);
 		/* 验证参数 */
-		if (isVerify) {verifys(remote.getRemoteClassDto().getMethods().get(method.getName()), method.toString(), args);}
+		if (isVerify) {verifys(remoteInfo.getRemoteClassDto().getMethods().get(method.getName()), method.toString(), args);}
 		/* 执行原方法调用 */
-		try {return method.invoke(remote.getBean(), args);}
-		/* 如果当前远程被禁用则重新调用其他远程 */
-		catch (Throwable e) {if (remote.isDisable()) {return invoke(method, args, false);} else {throw e;}}
+		try {return method.invoke(remoteInfo.getBean(), args);}
+		/* 如果当前远程调用被熔断 - 则重新调用其他远程 */
+		catch (Throwable e) {if (remoteInfo.getTurnOnTime() > System.currentTimeMillis()) {return invoke(method, args, false);} else {throw e;}}
 	}
 	/* 验证参数 */
 	private void verifys(RemoteMethodDto remoteMethodDto, String methodName, Object...args) {
