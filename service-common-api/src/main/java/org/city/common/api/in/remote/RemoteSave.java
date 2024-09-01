@@ -66,8 +66,8 @@ public interface RemoteSave {
 	public static class RemoteInfo {
 		/* 当前对象 */
 		private Object bean;
-		/* 是否不可用 - 用于远程调用防止IO异常重复调用 */
-		private boolean disable = false;
+		/* 远程调用接通时间点 */
+		private long turnOnTime;
 		/* 远程方法参数 */
 		private final RemoteClassDto remoteClassDto;
 		/* 远程地址端口信息 */

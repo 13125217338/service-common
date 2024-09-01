@@ -69,7 +69,7 @@ class AnnotationConditionService<D extends BaseDto> implements AnnotationConditi
 				if (crud != null) { //添加连接条件
 					ON[] ons = new ON[jn.ons().length];
 					for (int i = 0, j = ons.length; i < j; i++) {ons[i] = ON.of(jn.ons()[i]);}
-					condition.addJoin(crud, jn.alias(), jn.joinType(), ons).setIgnore(jn.ignore());;
+					condition.addJoin(crud, jn.alias(), jn.joinType(), ons).setIgnore(jn.ignore());
 				}
 			}
 		}
@@ -215,7 +215,7 @@ class AnnotationConditionService<D extends BaseDto> implements AnnotationConditi
 				Crud<?> joinService = condition.getCrud(joinTb.join());
 				if (joinService != null) {
 					/* 设置字段参数 */
-					JoinTable joinTable = new JoinTable(joinService, joinTb.alias()).setLimit(joinTb.limit());;
+					JoinTable joinTable = new JoinTable(joinService, joinTb.alias()).setLimit(joinTb.limit());
 					if (isBaseType(fc.data.getType())) { //基本类型直接用字段名装填
 						join.setJoinTable(joinTable).addField(fc.annotation.mathSql(), fc.data.getName(), joinTb.joinFieldName(), getVals(fc.annotation, joinService));
 					} else { //非基本类型使用子对象模式装填
