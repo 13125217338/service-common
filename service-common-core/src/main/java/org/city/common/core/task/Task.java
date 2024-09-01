@@ -1,7 +1,6 @@
 package org.city.common.core.task;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,11 +8,13 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.city.common.api.in.Runnable;
+
 /**
  * @作者 ChengShi
  * @日期 2020-04-17 18:37:45
  * @版本 1.0
- * @描述 读写任务线程池
+ * @描述 执行任务线程池
  */
 public final class Task implements Closeable {
 	private final String NotifyRunTask = "NotifyRunTask";
@@ -21,6 +22,7 @@ public final class Task implements Closeable {
 	private final String NTime = "300000", CTime = "10000";
 	private int isClearSum = 0;
 	final DataCenter dataCenter;
+	
 	/**
 	 * @描述 初始化任务线程池
 	 * @param core 核心线程（如果小于1则用默认1个）
@@ -80,12 +82,10 @@ public final class Task implements Closeable {
 			}
 		}, () -> CTime, false);
 	}
-	/**
-	 * @描述 创建运行线程
-	 */
+	/* 创建运行线程 */
 	private Run createRun() {
 		Run run = new Run(this);
-		run.setName("Task("+run.getId()+")");;
+		run.setName(String.format("Task(%d)", run.getId()));
 		run.setPriority(Thread.MAX_PRIORITY);
 		run.start();
 		return run;
@@ -100,13 +100,13 @@ public final class Task implements Closeable {
 	 * @return 定时任务线程
 	 */
 	public Schedula Schedula(String id, Runnable task, Supplier<String> expression, boolean isFrist) {
-		if (dataCenter.SCALUDES.containsKey(id)) {throw new RuntimeException("Schedula调度线程唯一ID《"+id+"》存在，请勿重复设置ID！");}
+		if (dataCenter.SCHEDULA.containsKey(id)) {throw new RuntimeException(String.format("调度线程唯一ID[%s]已存在，请勿重复设置ID！", id));}
 		Schedula schedula = new Schedula(this, id, task, expression, isFrist);
 		try {
-			schedula.setName("Scalude("+id+")");
+			schedula.setName(String.format("Schedula(%s)", id));
 			schedula.setPriority(8);
 			schedula.start();
-			dataCenter.SCALUDES.put(id, schedula);
+			dataCenter.SCHEDULA.put(id, schedula);
 		} catch (Throwable e) {schedula.close();throw e;}
 		return schedula;
 	}
@@ -115,7 +115,7 @@ public final class Task implements Closeable {
 	 * @param id 唯一识别id
 	 * @return 定时任务线程
 	 */
-	public Schedula getSchedula(String id) {return dataCenter.SCALUDES.get(id);}
+	public Schedula getSchedula(String id) {return dataCenter.SCHEDULA.get(id);}
 	
 	/**
 	 * @描述 添加任务（队列任务超最大会抛出运行异常，多线程可能会超出一些任务，但不影响）
@@ -124,7 +124,7 @@ public final class Task implements Closeable {
 	public void PutTask(Runnable task) {
 		if (dataCenter.isClose) {return;}
 		if (dataCenter.TASKS.size() >= dataCenter.TASKMAX) {
-			throw new RuntimeException("队列任务数量已超过最大（"+dataCenter.TASKS.size()+"）！");
+			throw new RuntimeException(String.format("当前队列任务数量[%d]已超过最大值[%d]！", dataCenter.TASKS.size(), dataCenter.TASKMAX));
 		}
 		dataCenter.TASKS.add(task);
 		getSchedula(NotifyRunTask).Notify();
@@ -134,7 +134,7 @@ public final class Task implements Closeable {
 	 * @描述 添加任务（异步子线程运行，主线程等待执行）
 	 * @param <T> 子线程返回值
 	 * @param masterId 主线程唯一ID
-	 * @param timeout 主线程等待最大时间
+	 * @param timeout 主线程等待最大时间（毫秒）
 	 * @param sub 子线程执行的方法
 	 * @param master 主线程执行的方法
 	 * @return 子线程执行的返回值
@@ -181,7 +181,7 @@ public final class Task implements Closeable {
 	 * @描述 执行主线程
 	 * @param <T> 主线程返回值
 	 * @param masterId 主线程唯一ID
-	 * @param timeout 当前线程等待最大时间
+	 * @param timeout 当前线程等待最大时间（毫秒）
 	 * @param masterParam 主线程执行参数
 	 * @param notExist 主线程不存在时执行
 	 * @return 主线程执行的返回值
@@ -194,9 +194,10 @@ public final class Task implements Closeable {
 		if (sysParam == null) {return notExist.get();}
 		
 		synchronized (sysParam) {
+			timeout = timeout < 1 ? Short.MAX_VALUE : timeout;
 			if (!sysParam.isContinue()) {throw new RuntimeException(String.format("主线程[%s]已结束，无法执行其他逻辑！", masterId));}
 			try {
-				sysParam.notifyAll(); sysParam.setMasterParam(masterParam);
+				sysParam.setMasterParam(masterParam); sysParam.notifyAll();
 				long recordTime = System.currentTimeMillis(); //记录时间 - 判断是否超时
 				
 				sysParam.wait(timeout);
@@ -277,18 +278,19 @@ public final class Task implements Closeable {
 	
 	/**
 	 * @描述 清空任务数据
-	 * @throws IOException
 	 */
 	public void clearTask() {dataCenter.TASKS.removeAll();}
 	
-	/** 关闭所有由线程池拉起的线程（报错重试一次） */
+	/**
+	 * @描述 关闭所有由线程池拉起的线程（报错重试一次）
+	 */
 	@Override
 	public void close() {
 		try {remove();} catch (Throwable e) {remove();}
 	}
 	/* 关闭所有线程 */
 	private void remove() {
-		for(Schedula schedula : new ArrayList<Schedula>(dataCenter.SCALUDES.values())){schedula.close();};
+		for(Schedula schedula : new ArrayList<Schedula>(dataCenter.SCHEDULA.values())){schedula.close();}
 		for (Run run : new ArrayList<Run>(dataCenter.RUNS)) {run.close();}
 		clearTask();
 	}
