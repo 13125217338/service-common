@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class LoopAdapter implements RemoteAdapter {
 	private final AtomicInteger atomicInteger = new AtomicInteger();
-
+	
 	@Override
 	public RemoteInfo select(List<RemoteInfo> invokes, Object param) {
 		if (invokes.size() == 0) {return null;}

@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import org.city.common.api.in.Runnable;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.util.Assert;
 
@@ -63,7 +64,7 @@ public final class Schedula extends Thread implements Closeable {
 	@Override
 	public void close() {
 		this.isRun = false;
-		taskMain.dataCenter.SCALUDES.remove(id);
+		taskMain.dataCenter.SCHEDULA.remove(id);
 		this.Notify();
 	}
 	@Override

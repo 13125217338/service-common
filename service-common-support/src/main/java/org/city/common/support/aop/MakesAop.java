@@ -41,11 +41,11 @@ public class MakesAop implements Replace,JSONParser {
 	
 	@Around("@annotation(org.city.common.api.annotation.make.Makes)")
 	public Object makesAround(ProceedingJoinPoint jp) throws Throwable {
-		Method method = ((MethodSignature) jp.getSignature()).getMethod();		
+		Method method = ((MethodSignature) jp.getSignature()).getMethod();
 		/* 执行操作 */
 		return makeInvoke(jp, method.getDeclaredAnnotation(Makes.class), method);
 	}
-
+	
 	/* 操作执行 */
 	private Object makeInvoke(ProceedingJoinPoint jp, Makes makes, Method method) throws Throwable {
 		/* 获取参数真实名称 */
@@ -143,9 +143,17 @@ public class MakesAop implements Replace,JSONParser {
 					for (Entry<org.city.common.api.in.MakeInvoke, MakeInvokeDto> entry : invokes.entrySet()) {
 						MakeInvokeDto invokeDto = entry.getValue(); //执行参数
 						/* 开始执行异常 */
-						entry.getKey().throwable(this, e, invokeDto.getMakeInvoke().value(), invokeDto.getValues());
+						try {entry.getKey().throwable(this, e, invokeDto.getMakeInvoke().value(), invokeDto.getValues());} catch (Throwable e2) {}
 					}
 					throw e; //抛出当前异常错误
+				} finally {
+					Throwable e = null;
+					for (Entry<org.city.common.api.in.MakeInvoke, MakeInvokeDto> entry : invokes.entrySet()) {
+						MakeInvokeDto invokeDto = entry.getValue(); //执行参数
+						/* 最后执行方法 */
+						try {entry.getKey().finallys(this, invokeDto.getMakeInvoke().value(), invokeDto.getValues());} catch (Throwable e2) {e = e2;}
+					}
+					if (e != null) {throw e;} //抛出最后执行的异常
 				}
 			}
 		};
