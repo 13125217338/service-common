@@ -13,10 +13,10 @@ import org.springframework.core.env.Environment;
  * @版本 1.0
  * @描述 Spring工具
  */
-public final class SpringUtil implements FirstCharParse {
+public final class SpringUtil {
+	private final static FirstCharParse FIRST_CHAR_PARSE = new FirstCharParse() {};
 	private static ApplicationContext applicationContext;
 	private static String appName;
-	private final static SpringUtil SPRING_UTIL = new SpringUtil();
 	private SpringUtil() {}
 	
 	/**
@@ -81,7 +81,7 @@ public final class SpringUtil implements FirstCharParse {
      * @return 对应Bean
      */
     public static <T> T getBean(Class<T> cls){
-    	String lowerName = SPRING_UTIL.parseLower(cls);
+    	String lowerName = FIRST_CHAR_PARSE.parseLower(cls);
     	return applicationContext.containsBean(lowerName) ? getBean(lowerName, cls) : applicationContext.getBean(cls);
     }
     

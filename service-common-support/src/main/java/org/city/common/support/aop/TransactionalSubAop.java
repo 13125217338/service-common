@@ -1,6 +1,7 @@
 package org.city.common.support.aop;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
@@ -12,12 +13,10 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.city.common.api.adapter.RemoteAdapter;
 import org.city.common.api.annotation.sql.GlobalTransactional;
-import org.city.common.api.constant.CommonConstant;
 import org.city.common.api.dto.remote.RemoteConfigDto;
 import org.city.common.api.in.sql.RemoteTransactional;
 import org.city.common.api.in.sql.TransactionalSuccess;
 import org.city.common.api.in.sql.TransactionalThrowable;
-import org.city.common.api.util.HeaderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -50,16 +49,18 @@ public class TransactionalSubAop {
 	
 	@Around("transactionalCut()")
 	public Object transactionalAround(ProceedingJoinPoint jp) throws Throwable {
-		Method method = ((MethodSignature) jp.getSignature()).getMethod();
-		if (notGlobalTransactional(method)) {return jp.proceed();} //非远程事务则直接执行原方法
-		appendTOS(jp, method); //有远程事务 - 追加事务对象链路
-		if (IS_IN.get() != null) {return jp.proceed();} //进入过事务则直接执行原方法
-		
-		/* 获取事务ID */
-		String tranId = RemoteAdapter.REMOTE_TRANSACTIONAL.get();
-		/* 子事务处理 */
-		try {IS_IN.set(true); TOS.set(new ArrayList<>()); appendTOS(jp, method); return handler(tranId, method, jp);}
-		catch (Throwable e) {handlerThrowable(tranId, e); throw e;} finally {TOS.remove(); IS_IN.remove();}
+		try {
+			Method method = ((MethodSignature) jp.getSignature()).getMethod();
+			if (notGlobalTransactional(method)) {return jp.proceed();} //非远程事务则直接执行原方法
+			appendTOS(jp, method); //有远程事务 - 追加事务对象链路
+			if (IS_IN.get() != null) {return jp.proceed();} //进入过事务则直接执行原方法
+			
+			/* 获取事务ID */
+			String tranId = RemoteAdapter.REMOTE_TRANSACTIONAL.get();
+			/* 子事务处理 */
+			try {IS_IN.set(true); TOS.set(new ArrayList<>()); appendTOS(jp, method); return handler(tranId, method, jp);}
+			catch (Throwable e) {handlerThrowable(tranId, e); throw e;} finally {TOS.remove(); IS_IN.remove();}
+		} catch (Throwable e) {throw new UndeclaredThrowableException(e);}
 	}
 	/* 追加事务对象链路 */
 	private void appendTOS(ProceedingJoinPoint jp, Method method) {
@@ -69,7 +70,7 @@ public class TransactionalSubAop {
 	
 	/* 子事务处理 */
 	private Object handler(String tranId, Method method, ProceedingJoinPoint jp) throws Throwable {
-		if (HeaderUtil.getHeaderVal(CommonConstant.REMOTE_TRANSACTIONAL_HEADER_NAME) == null) {remoteTransactional.add(tranId);}
+		if (transactionalAop.TRAN_DATA.get(tranId) == null) {remoteTransactional.add(tranId);}
 		else {remoteTransactional.append(tranId);} //发起者添加事务 - 参与者追加事务
 		long recordTime = System.currentTimeMillis(); //执行方法前记录时间
 		
@@ -105,7 +106,7 @@ public class TransactionalSubAop {
 	private void verifyTimeout(String tranId, long recordTime) throws Throwable {
 		if ((System.currentTimeMillis() - recordTime) > remoteConfigDto.getReadTimeout()) {
 			remoteTransactional.setState(tranId, false, new TimeoutException("事务执行等待超时！"));
-		} else {try {Thread.sleep(50L);} catch (Throwable e) {}} //等待50毫秒防止过快
+		} else {try {Thread.sleep((long) (Math.random() * 80 + 20));} catch (Throwable e) {}} //等待20-100毫秒防止过快
 	}
 	/* 处理异常 */
 	private void handlerThrowable(String tranId, Throwable e) throws Throwable {

@@ -9,6 +9,7 @@ import org.city.common.api.adapter.RemoteAdapter;
 import org.city.common.api.annotation.plug.RemoteMethod;
 import org.city.common.api.dto.remote.RemoteClassDto;
 import org.city.common.api.dto.remote.RemoteMethodDto;
+import org.city.common.api.exception.ServiceNotFoundException;
 import org.city.common.api.in.parse.JSONParser;
 import org.city.common.api.in.parse.MethodNameParse;
 import org.city.common.api.in.remote.RemoteSave;
@@ -17,6 +18,7 @@ import org.springframework.util.Assert;
 import org.springframework.util.ReflectionUtils;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * @作者 ChengShi
@@ -24,6 +26,7 @@ import lombok.Data;
  * @版本 1.0
  * @描述 插件工具
  */
+@Slf4j
 public final class PlugUtil {
 	public final static RemoteSave REMOTE_SAVE = SpringUtil.getBean(RemoteSave.class);
 	private PlugUtil() {}
@@ -37,7 +40,10 @@ public final class PlugUtil {
 	 */
 	public static RemoteInfo getRemote(Object param, RemoteAdapter remoteAdapter, Class<?> interfaceCls) {
 		RemoteInfo select = remoteAdapter.select(REMOTE_SAVE.get(interfaceCls), param);
-		Assert.notNull(select, String.format("类[%s]使用参数[%s]的选择器[%s]返回NULL未选择任何实现类！", interfaceCls.getName(), param, remoteAdapter.getClass().getName()));
+		if (select == null) {
+			log.error("接口[{}]使用参数[{}]的选择器[{}]未选择任何实现类！", interfaceCls.getName(), param, remoteAdapter.getClass().getName());
+			throw new ServiceNotFoundException(param, remoteAdapter, interfaceCls);
+		}
 		return select.setRemoteAdapter(remoteAdapter);
 	}
 	/**
@@ -54,7 +60,7 @@ public final class PlugUtil {
 	public static <P, R> R invoke(Object param, RemoteAdapter remoteAdapter, Class<P> interfaceCls, ClassProcess<P, R> process) {
 		RemoteInfo remote = getRemote(param, remoteAdapter, interfaceCls);
 		try {return process.invoke((P) remote.getBean());}
-		catch (Throwable e) {if (remote.isDisable()) {return invoke(param, remoteAdapter, interfaceCls, process);} else {throw e;}}
+		catch (Throwable e) {if (remote.getTurnOnTime() > System.currentTimeMillis()) {return invoke(param, remoteAdapter, interfaceCls, process);} else {throw e;}}
 	}
 	/**
 	 * @描述 获取所有远程信息

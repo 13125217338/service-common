@@ -6,7 +6,9 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.city.common.api.constant.PrimitiveClass;
 
@@ -93,6 +95,24 @@ public interface TypeParse {
 			}
 		}
 		return method.getGenericReturnType();
+	}
+	
+	/**
+	 * @描述 根据当前类获取父类泛型信息
+	 * @param curClass 当前类
+	 * @return key=泛型名称，value=泛型类
+	 */
+	default Map<String, Class<?>> getGenericSuperClass(Class<?> curClass) {
+		ParameterizedType superClass = (ParameterizedType) curClass.getGenericSuperclass();
+		Type[] types = superClass.getActualTypeArguments(); //父类泛型信息
+		TypeVariable<?>[] typeVars = ((Class<?>) superClass.getRawType()).getTypeParameters(); //当前泛型信息
+		
+		/* key=泛型名称，value=泛型类 */
+		Map<String, Class<?>> result = new HashMap<>();
+		for (int i = 0, j = types.length; i < j; i++) {
+			result.put(typeVars[i].getName(), getClass(types[i]));
+		}
+		return result;
 	}
 	
 	/**

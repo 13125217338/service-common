@@ -2,6 +2,8 @@ package org.city.common.core.task;
 
 import java.io.Closeable;
 
+import org.city.common.api.in.Runnable;
+
 import lombok.extern.slf4j.Slf4j;
 
 /**
