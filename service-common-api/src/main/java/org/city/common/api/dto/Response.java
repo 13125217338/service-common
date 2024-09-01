@@ -4,6 +4,8 @@ import org.city.common.api.dto.remote.RemoteConfigDto;
 import org.city.common.api.util.SpringUtil;
 import org.springframework.http.HttpStatus;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema.RequiredMode;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -14,15 +16,15 @@ import lombok.experimental.Accessors;
  * @描述 统一响应消息
  */
 @Data
+@Schema(name = "公共响应")
 @Accessors(chain = true)
 public class Response {
-	/* 默认成功字符串 */
-	private final static String SUCCESS = SpringUtil.getBean(RemoteConfigDto.class).getMsg();
-	/* 标识码 */
+	private final static String SUCCESS = SpringUtil.getBean(RemoteConfigDto.class).getMsg(); //默认成功字符串
+	@Schema(description = "状态码 - 200=OK", requiredMode = RequiredMode.REQUIRED)
 	private int code = HttpStatus.OK.value();
-	/* 数据 */
+	@Schema(description = "数据", requiredMode = RequiredMode.NOT_REQUIRED)
 	private Object data;
-	/* 消息 */
+	@Schema(description = "消息", requiredMode = RequiredMode.REQUIRED)
 	private String msg = SUCCESS;
 	
 	/**
@@ -64,7 +66,7 @@ public class Response {
 	
 	/**
 	 * @描述 响应指定错误信息
-	 * @param 错误消息
+	 * @param msg 错误消息
 	 * @return 错误对象
 	 */
 	public static Response error(String msg) {

@@ -6,7 +6,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import javax.sql.DataSource;
+import org.city.common.api.in.sql.DefaultDataSource;
+import org.city.common.api.in.sql.MyDataSource;
 
 /**
  * @作者 ChengShi
@@ -29,5 +30,5 @@ public @interface Table {
 	/**
 	 * @描述 自定义数据源（实现类需交给Spring管理）
 	 */
-	public Class<? extends DataSource> dataSource() default DataSource.class;
+	public Class<? extends MyDataSource> dataSource() default DefaultDataSource.class;
 }

@@ -19,11 +19,13 @@ public class RemoteConfigDto {
 	/* 是否执行远程 */
 	private boolean invoke = true;
 	/* 验证盐 */
-	private String verify = "RemoteInvokeService-Verify";
+	private String verify = "3fea7df4a746702baf96495999398c598f61b74827db7d579ea97f36c1b1e5b2";
 	/* 连接时间（毫秒） */
 	private int connectTimeout = 1000 * 60;
 	/* 读取时间（毫秒） */
 	private int readTimeout = 1000 * 120;
+	/* 熔断接通时间（毫秒） */
+	private int failTimeout = 30 * 1000;
 	/* 任务线程最大数量 */
 	private int taskThread = 100;
 	/* 最短时间选择适配器 - 达到该值后远程请求重新计时 */
@@ -34,4 +36,8 @@ public class RemoteConfigDto {
 	private String msg = HttpStatus.OK.getReasonPhrase();
 	/* 响应内容是否写空值 */
 	private boolean writeNull = false;
+	/* Long类型序列化成String类型 */
+	private boolean longToString = false;
+	/* Double类型序列化成String类型 */
+	private boolean doubleToString = false;
 }

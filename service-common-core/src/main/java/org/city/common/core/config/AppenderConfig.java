@@ -34,7 +34,7 @@ public class AppenderConfig extends ConsoleAppender<ILoggingEvent> implements Th
 	private final String OLD_CONSOLE_NAME = "CONSOLE";
 	@Value("${logging.system:true}")
 	private boolean isSystem = true;
-
+	
 	/**
 	 * @描述 初始化配置 - 使用顶级全局打印捕获
 	 */
