@@ -12,6 +12,7 @@ import org.city.common.api.dto.ExceptionDto;
 import org.city.common.api.dto.ExceptionDto.CustomException;
 import org.city.common.api.dto.GlobalExceptionDto;
 import org.city.common.api.dto.Response;
+import org.city.common.api.dto.remote.RemoteIpPortDto;
 import org.city.common.api.exception.ResponseException;
 import org.city.common.api.in.parse.ExceptionParse;
 import org.city.common.api.in.parse.JSONParser;
@@ -23,6 +24,8 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import com.alibaba.fastjson.JSON;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,27 +59,25 @@ public class GlobalExceptionAop implements JSONParser,ThrowableMessage {
 	@ResponseStatus(code = HttpStatus.OK)
 	@ExceptionHandler(value = Throwable.class)
 	public Object exceptionHandler(Throwable e) {
-		e = getRealExcept(e); //获取真实异常
-		final String trackId = UUID.randomUUID().toString(); //唯一通道ID
+		/* 获取真实异常 */
+		e = getRealExcept(e);
+		/* 如果是远程异常特殊处理 */
+		if (e instanceof ResponseException) {
+			ResponseException responseExp = (ResponseException) e;
+			RemoteIpPortDto remoteIpPort = responseExp.getRemoteIpPort();
+			Response response = responseExp.getResponse();
+			
+			/* 打印并返回 */
+			log.error(String.format("%s》》》 [%s] \r\n\tat %s", "远程服务调用异常", remoteIpPort, JSON.toJSONString(response.getData())));
+			return response;
+		}
 		
-		try {
-			/* 如果是远程异常特殊处理 */
-			if (e instanceof ResponseException) {
-				ResponseException responseExp = (ResponseException) e;
-				if (responseExp.getRemote() == null) {return responseExp.getResponse();}
-				else {
-					GlobalExceptionDto remoteExp = responseExp.getRemote();
-					/* 打印并返回 */
-					log.error(String.format("%s》》》 [%s][%s] \r\n\tat %s", "远程服务调用异常", remoteExp.getAppName(), remoteExp.getTrackId(), remoteExp.getAppErroMsg()));
-					return Response.error(responseExp.getResponse().getCode(), remoteExp, responseExp.getResponse().getMsg());
-				}
-			}
-		/* 全局异常打印 */
-		} finally {log.error(String.format("全局捕获异常》》》 [%s]", trackId), e);}
-		
+		/* 全局打印 */
+		final String trackId = UUID.randomUUID().toString();
+		log.error(String.format("全局捕获异常》》》 [%s]", trackId), e);
 		/* 异常信息 */
 		ExceptionDto exception = getException(e);
-		GlobalExceptionDto globalExceptionDto = new GlobalExceptionDto(SpringUtil.getAppName(), exception.getAppMsg(), trackId);
+		GlobalExceptionDto globalException = new GlobalExceptionDto(SpringUtil.getAppName(), exception.getAppMsg(), trackId);
 		
 		/* 自定义异常 */
 		if (!CollectionUtils.isEmpty(exceptionParses)) {
@@ -89,13 +90,13 @@ public class GlobalExceptionAop implements JSONParser,ThrowableMessage {
 				
 				if (exceptionParse != null) { //如果赋值了则直接使用这个实现类
 					CustomException custom = exceptionParse.parse(e, exception.getErrorMsg());
-					return Response.error(custom.getCode(), globalExceptionDto, custom.getMsg());
+					return Response.error(custom.getCode(), globalException, custom.getMsg());
 				}
 			/* 自定义解析出错使用默认错误 */
 			} catch (Throwable e2) {log.error(String.format("自定义解析异常》》》 [%s]", trackId), e2);}
 		}
 		/* 默认错误 */
-		return Response.error(globalExceptionDto, exception.getErrorMsg());
+		return Response.error(globalException, exception.getErrorMsg());
 	}
 	/* 获取自定义异常 */
 	@SuppressWarnings("unchecked")
@@ -112,31 +113,5 @@ public class GlobalExceptionAop implements JSONParser,ThrowableMessage {
 			}
 		}
 		throw new NullPointerException(String.format("自定义解析异常错误，[%s]未找到！", parse.getClass().getName()));
-	}
-	/* 获取异常信息 */
-	private ExceptionDto getException(Throwable e) {
-		/* 定义信息 */
-		String msg = e.toString(), simple = null;
-		/* 如果包含该异常 - 数据库操作异常不展示给前端 */
-		if (msg.contains("org.springframework.dao.")) {
-			String daoMsg = "数据库操作异常！";
-			return new ExceptionDto("org.springframework.dao.*: " + daoMsg, daoMsg);
-		}
-		/* 如果包含该异常 - 数据库操作异常不展示给前端 */
-		if (msg.contains("org.springframework.jdbc.")) {
-			String daoMsg = "数据库操作异常！";
-			return new ExceptionDto("org.springframework.jdbc.*: " + daoMsg, daoMsg);
-		}
-		
-		/* 定义下标 - 只取一行 */
-		int hh = msg.indexOf("\n"), mh = msg.indexOf(":") + 1;
-		/* 截取信息 */
-		if (hh > 0) {msg = msg.substring(0, hh).trim();}
-		simple = mh > 0 ? msg.substring(mh).trim() : msg;
-		/* 精简信息过大时限制大小并使用“...”做后缀 */
-		if (simple.length() > Byte.MAX_VALUE) {simple = simple.substring(0, Byte.MAX_VALUE) + "...";}
-		
-		/* 生成的异常 */
-		return new ExceptionDto(msg, simple);
 	}
 }

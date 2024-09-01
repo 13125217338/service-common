@@ -10,6 +10,7 @@ import org.city.common.api.in.parse.JSONParser;
 import org.city.common.api.in.sql.Limit;
 import org.springframework.util.Assert;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -24,18 +25,18 @@ import lombok.experimental.Accessors;
 @Setter
 @Accessors(chain = true)
 public class BaseDto implements JSONParser {
-	/* 页码 */
-	private Long pageNum;
-	/* 页大小 */
-	private Long pageSize;
-	/* 排序 - 支持<obj$field>排序 */
-	private List<OrderBy> orderBys;
-	/* 用户自定义Sql参数（防注入安全参数） */
-	private UserSqlDto userSqlDto;
-	/* 自定义参数 */
-	private Object param;
-	/* 附加参数 */
-	private final Map<String, Object> params = new HashMap<>();
+	@Hidden
+	private Long pageNum; //页码
+	@Hidden
+	private Long pageSize; //页大小
+	@Hidden
+	private List<OrderBy> orderBys; //排序 - 支持<obj$field>排序
+	@Hidden
+	private UserSqlDto userSqlDto; //用户自定义Sql参数（防注入安全参数）
+	@Hidden
+	private Object param; //自定义参数
+	@Hidden
+	private final Map<String, Object> params = new HashMap<>(); //附加参数
 	
 	/**
 	 * @描述 获取用户自定义Sql参数

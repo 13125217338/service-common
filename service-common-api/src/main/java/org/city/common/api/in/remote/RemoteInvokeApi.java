@@ -13,10 +13,10 @@ public interface RemoteInvokeApi {
 	/**
 	 * @描述 执行远程代码
 	 * @param beanName 对应SpringBean名称
-	 * @param data 远程数据参数
-	 * @param remoteIpPortDto 远程地址端口信息
+	 * @param remoteMethod 远程方法信息
+	 * @param remoteIpPort 远程地址端口信息
 	 * @param args 远程方法参数
 	 * @return 执行返回值
 	 */
-	public Object invoke(String beanName, RemoteMethodDto data, RemoteIpPortDto remoteIpPortDto, Object... args) throws Throwable;
+	public Object invoke(String beanName, RemoteMethodDto remoteMethod, RemoteIpPortDto remoteIpPort, Object... args) throws Throwable;
 }

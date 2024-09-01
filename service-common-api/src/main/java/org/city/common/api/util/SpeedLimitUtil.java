@@ -21,7 +21,7 @@ public final class SpeedLimitUtil {
 	 * @param sum 限制大小
 	 * @param timeSec 秒单位
 	 * @param syncObj 需要被同步的对象（防止多线程访问同一对象）
-	 * @param speedEx 超速异常（为NULL代表同步限制）
+	 * @param speedEx 超速异常（NULL=同步限制）
 	 */
 	public static void limitSec(int sum, int timeSec, Object syncObj, Supplier<RuntimeException> speedEx) {
 		if (sum < 1 || timeSec < 1) {return;} else {timeSec = timeSec * 1000;} //小于1不限制，时间换成毫秒计算增加精准度

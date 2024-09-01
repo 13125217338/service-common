@@ -177,7 +177,7 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 		methodAnnotation.put("value", value);
 		return methodAnnotation;
 	}
-
+	
 	/* 注册单例Bean */
 	private void register(Object bean, Class<?> beanCls, String beanName) {
 		ConfigurableApplicationContext configurableApplicationContext = (ConfigurableApplicationContext) SpringUtil.getApplicationContext();

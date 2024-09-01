@@ -61,8 +61,9 @@ public class MvcConfig implements WebMvcConfigurer {
 	/**
 	 * @描述 自定义解析器
 	 * @param converters 解析器
+	 * @return 解析器
 	 */
-	public void setConverter(List<HttpMessageConverter<?>> converters) {
+	public List<HttpMessageConverter<?>> setConverter(List<HttpMessageConverter<?>> converters) {
 		converters.clear();
 		/* FastJson设置解析 */
 		FastJsonHttpMessageConverter converter = new FastJsonHttpMessageConverter();
@@ -74,14 +75,15 @@ public class MvcConfig implements WebMvcConfigurer {
         if (remoteConfig.isWriteNull()) {converter.getFastJsonConfig().setSerializerFeatures(SerializerFeature.WriteMapNullValue);}
 		
         /* 添加自定义Converter */
-		converters.add(converter); //第一个使用FastJson
-		converters.add(new FormHttpMessageConverter());
-		converters.add(new ByteArrayHttpMessageConverter());
-		converters.add(new ResourceHttpMessageConverter());
+        converters.add(new FormHttpMessageConverter());
+        converters.add(new ByteArrayHttpMessageConverter());
+        converters.add(new ResourceHttpMessageConverter());
+		converters.add(converter); //使用FastJson消息解析
 		if (jackson2CborPresent) {converters.add(new MappingJackson2CborHttpMessageConverter());}
 		if (jackson2XmlPresent) {converters.add(new MappingJackson2XmlHttpMessageConverter());}
 		if (jackson2SmilePresent) {converters.add(new MappingJackson2SmileHttpMessageConverter());}
 		if (jackson2Present) {converters.add(new MappingJackson2HttpMessageConverter());}
+		return converters;
     }
 	/* 获取类型 */
 	private List<MediaType> getTypes() {
