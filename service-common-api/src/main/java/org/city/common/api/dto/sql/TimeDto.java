@@ -4,6 +4,7 @@ import java.sql.Timestamp;
 
 import com.alibaba.fastjson.annotation.JSONField;
 
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -18,10 +19,10 @@ import lombok.experimental.Accessors;
 @Getter
 @Accessors(chain = true)
 public class TimeDto extends BaseDto {
-	/** 创建时间 - 创建时自动设置当前时间 */
+	@Hidden
 	@JSONField(format = "yyyy-MM-dd HH:mm:ss")
-	private Timestamp createTime;
-	/** 更新时间 - 更新时自动设置当前时间 */
+	private Timestamp createTime; //创建时间 - 创建时自动设置当前时间
+	@Hidden
 	@JSONField(format = "yyyy-MM-dd HH:mm:ss")
-	private Timestamp updateTime;
+	private Timestamp updateTime; //更新时间 - 更新时自动设置当前时间
 }

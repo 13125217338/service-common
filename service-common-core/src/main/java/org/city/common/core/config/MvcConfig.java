@@ -21,7 +21,9 @@ import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurationSupport;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import com.alibaba.fastjson.serializer.SerializeConfig;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson.serializer.ToStringSerializer;
 import com.alibaba.fastjson.support.spring.FastJsonHttpMessageConverter;
 
 /**
@@ -61,8 +63,9 @@ public class MvcConfig implements WebMvcConfigurer {
 	/**
 	 * @描述 自定义解析器
 	 * @param converters 解析器
+	 * @return 解析器
 	 */
-	public void setConverter(List<HttpMessageConverter<?>> converters) {
+	public List<HttpMessageConverter<?>> setConverter(List<HttpMessageConverter<?>> converters) {
 		converters.clear();
 		/* FastJson设置解析 */
 		FastJsonHttpMessageConverter converter = new FastJsonHttpMessageConverter();
@@ -70,18 +73,31 @@ public class MvcConfig implements WebMvcConfigurer {
         converter.setDefaultCharset(StandardCharsets.UTF_8);
         
 		/* 验证是否返回空字符 */
-        RemoteConfigDto remoteConfig = SpringUtil.getBean(RemoteConfigDto.class);
-        if (remoteConfig.isWriteNull()) {converter.getFastJsonConfig().setSerializerFeatures(SerializerFeature.WriteMapNullValue);}
+        RemoteConfigDto remoteConfigDto = SpringUtil.getBean(RemoteConfigDto.class);
+        if (remoteConfigDto.isWriteNull()) {converter.getFastJsonConfig().setSerializerFeatures(SerializerFeature.WriteMapNullValue);}
+		/* 验证是否Long转String */
+        if (remoteConfigDto.isLongToString()) {
+        	SerializeConfig serializeConfig = converter.getFastJsonConfig().getSerializeConfig();
+        	serializeConfig.put(Long.class, ToStringSerializer.instance);
+        	serializeConfig.put(Long.TYPE, ToStringSerializer.instance);
+        }
+        /* 验证是否Double转String */
+        if (remoteConfigDto.isDoubleToString()) {
+        	SerializeConfig serializeConfig = converter.getFastJsonConfig().getSerializeConfig();
+        	serializeConfig.put(Double.class, ToStringSerializer.instance);
+        	serializeConfig.put(Double.TYPE, ToStringSerializer.instance);
+        }
 		
         /* 添加自定义Converter */
-		converters.add(converter); //第一个使用FastJson
-		converters.add(new FormHttpMessageConverter());
-		converters.add(new ByteArrayHttpMessageConverter());
-		converters.add(new ResourceHttpMessageConverter());
+        converters.add(new FormHttpMessageConverter());
+        converters.add(new ByteArrayHttpMessageConverter());
+        converters.add(new ResourceHttpMessageConverter());
+		converters.add(converter); //使用FastJson消息解析
 		if (jackson2CborPresent) {converters.add(new MappingJackson2CborHttpMessageConverter());}
 		if (jackson2XmlPresent) {converters.add(new MappingJackson2XmlHttpMessageConverter());}
 		if (jackson2SmilePresent) {converters.add(new MappingJackson2SmileHttpMessageConverter());}
 		if (jackson2Present) {converters.add(new MappingJackson2HttpMessageConverter());}
+		return converters;
     }
 	/* 获取类型 */
 	private List<MediaType> getTypes() {

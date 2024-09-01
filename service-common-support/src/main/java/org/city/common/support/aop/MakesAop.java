@@ -41,11 +41,11 @@ public class MakesAop implements Replace,JSONParser {
 	
 	@Around("@annotation(org.city.common.api.annotation.make.Makes)")
 	public Object makesAround(ProceedingJoinPoint jp) throws Throwable {
-		Method method = ((MethodSignature) jp.getSignature()).getMethod();		
+		Method method = ((MethodSignature) jp.getSignature()).getMethod();
 		/* 执行操作 */
 		return makeInvoke(jp, method.getDeclaredAnnotation(Makes.class), method);
 	}
-
+	
 	/* 操作执行 */
 	private Object makeInvoke(ProceedingJoinPoint jp, Makes makes, Method method) throws Throwable {
 		/* 获取参数真实名称 */

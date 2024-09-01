@@ -23,7 +23,7 @@ public class TimeAdapter implements RemoteAdapter {
 	private final AtomicInteger atomicInteger = new AtomicInteger();
 	@Autowired
 	private RemoteConfigDto remoteConfigDto;
-
+	
 	@Override
 	public RemoteInfo select(List<RemoteInfo> invokes, Object param) {
 		/* 到达最大清除数时清除计时缓存 */
@@ -44,7 +44,7 @@ public class TimeAdapter implements RemoteAdapter {
 		}
 		return curSelect;
 	}
-
+	
 	@Override
 	public void invokedInfo(int invokedTime, RemoteInfo remoteInfo) {
 		Long tm = timeSum.get(remoteInfo.getRemoteIpPortDto().toString());

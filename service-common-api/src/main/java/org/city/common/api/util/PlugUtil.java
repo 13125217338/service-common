@@ -54,7 +54,7 @@ public final class PlugUtil {
 	public static <P, R> R invoke(Object param, RemoteAdapter remoteAdapter, Class<P> interfaceCls, ClassProcess<P, R> process) {
 		RemoteInfo remote = getRemote(param, remoteAdapter, interfaceCls);
 		try {return process.invoke((P) remote.getBean());}
-		catch (Throwable e) {if (remote.isDisable()) {return invoke(param, remoteAdapter, interfaceCls, process);} else {throw e;}}
+		catch (Throwable e) {if (remote.getTurnOnTime() > System.currentTimeMillis()) {return invoke(param, remoteAdapter, interfaceCls, process);} else {throw e;}}
 	}
 	/**
 	 * @描述 获取所有远程信息
