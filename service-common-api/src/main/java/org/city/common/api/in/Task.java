@@ -20,7 +20,7 @@ public interface Task {
 	 * @描述 添加任务（异步子线程运行，主线程等待执行）
 	 * @param <T> 子线程返回值
 	 * @param masterId 主线程唯一ID
-	 * @param timeout 主线程等待最大时间
+	 * @param timeout 主线程等待最大时间（毫秒）
 	 * @param sub 子线程执行的方法
 	 * @param master 主线程执行的方法
 	 * @return 子线程执行的返回值
@@ -32,7 +32,7 @@ public interface Task {
 	 * @描述 执行主线程
 	 * @param <T> 主线程返回值
 	 * @param masterId 主线程唯一ID
-	 * @param timeout 当前线程等待最大时间
+	 * @param timeout 当前线程等待最大时间（毫秒）
 	 * @param masterParam 主线程执行参数
 	 * @param notExist 主线程不存在时执行
 	 * @return 主线程执行的返回值

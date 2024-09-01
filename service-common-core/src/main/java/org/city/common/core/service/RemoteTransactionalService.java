@@ -13,6 +13,7 @@ import org.city.common.api.dto.remote.RemoteTransactionalDto;
 import org.city.common.api.exception.RemoteTransactionalException;
 import org.city.common.api.in.redis.RedisMake;
 import org.city.common.api.in.sql.RemoteTransactional;
+import org.city.common.api.in.util.ThrowableMessage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +26,7 @@ import com.alibaba.fastjson.JSONObject;
  * @描述 远程分布式事务服务
  */
 @Service
-public class RemoteTransactionalService implements RemoteTransactional {
+public class RemoteTransactionalService implements RemoteTransactional,ThrowableMessage {
 	@Autowired
 	private RemoteIpPortDto localIpPort;
 	@Autowired
@@ -54,7 +55,7 @@ public class RemoteTransactionalService implements RemoteTransactional {
 		if(!redisMake.tryLock(CommonConstant.REDIS_TRANSACTIONAL_LOCK_KEY + tranId, remoteConfigDto.getReadTimeout(), true, () -> {
 			if (!state) {if (verifyResult(tranId)) {return true;}} //待设置状态失败但执行成功则什么都不做
 			Map<String, RemoteTransactionalDto> trans = get(tranId); //获取原值用于更新
-			trans.get(localIpPort.toString()).setState(state).setErrorMsg(throwable == null ? null : throwable.toString()); //设置事务状态与错误信息
+			trans.get(localIpPort.toString()).setState(state).setErrorMsg(throwable == null ? null : getRealExcept(throwable).toString()); //设置事务状态与错误信息
 			redisMake.setValue(CommonConstant.REDIS_REMOTE_TRANSACTIONAL_KEY + tranId, trans, remoteConfigDto.getReadTimeout(), TimeUnit.MILLISECONDS);
 			if (!state) {return false;} else {return true;} //待设置状态失败且继续验证则抛出异常 - 否则什么都不做
 		})) {throw throwable;} //返回false代表要抛出异常

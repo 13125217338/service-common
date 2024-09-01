@@ -5,7 +5,6 @@ import javax.annotation.PostConstruct;
 import org.city.common.api.util.SpringUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
 import com.alibaba.cloud.nacos.registry.NacosRegistration;
@@ -40,8 +39,6 @@ public class RemoteIpPortDto {
 	
 	@Override
 	public String toString() {
-		Assert.hasText(ip, "远程ip地址不能为空！");
-		Assert.notNull(port, "远程port端口不能为空！");
 		return ip + ":" + port;
 	}
 	
