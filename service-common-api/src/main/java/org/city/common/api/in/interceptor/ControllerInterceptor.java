@@ -8,7 +8,7 @@ import org.aspectj.lang.JoinPoint;
  * @版本 1.0
  * @描述 自定义全局控制拦截处理
  */
-public interface HandlerInterceptor {
+public interface ControllerInterceptor {
 	/**
 	 * @描述 进入控制前处理
 	 * @param jp 拦截点

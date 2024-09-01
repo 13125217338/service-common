@@ -884,14 +884,14 @@ public class Condition {
 			if (subJoin == null) { //非子查询连表
 				ignoreName = StringUtils.hasText(ignoreName) ? " IGNORE INDEX(" + ignoreName + ")" : "";
 				String tableName = joinTable.join.getTableName(condition.getBaseDto());
-				return String.format("%s`%s` %s%s%s", joinType.getVal(), tableName, joinTable.joinAlias, ignoreName, onSql(curService));
+				return String.format("%s`%s` %s%s%s", joinType.getVal(), tableName, joinTable.joinAlias, ignoreName, onSql(curService, dtoValues));
 			} else { //子查询连表
 				dtoValues.addAll(subJoin.getParams());
-				return String.format("%s(%s) %s%s", joinType.getVal(), subJoin.getSql(), joinTable.joinAlias, onSql(curService));
+				return String.format("%s(%s) %s%s", joinType.getVal(), subJoin.getSql(), joinTable.joinAlias, onSql(curService, dtoValues));
 			}
 		}
 		/* 条件返回 */
-		private String onSql(Crud<? extends BaseDto> curService) {
+		private String onSql(Crud<? extends BaseDto> curService, List<Object> dtoValues) {
 			if (ons == null || ons.length == 0) {return "";}
 			
 			/* 连接表所有字段 */
@@ -920,8 +920,8 @@ public class Condition {
 				Map<String, String> curFields = cur.curService.getTableFields(); //当前表所有字段
 				/* 当前表别名 */
 				String curAlias = StringUtils.hasText(cur.alias) ? cur.alias : cur.curService.getTable().alias();
-				sb.append(String.format("%s %s %s", getName(curFields, curAlias, on.curField),
-						on.make.getOptVal(), getName(joinFields, joinTable.joinAlias, on.joinField)));
+				sb.append(String.format("%s %s %s", getName(curFields, curAlias, on.curField, dtoValues),
+						on.make.getOptVal(), getName(joinFields, joinTable.joinAlias, on.joinField, dtoValues)));
 			}
 			
 			/* 最后处理条件 */
@@ -931,9 +931,10 @@ public class Condition {
 			return sb.toString();
 		}
 		/* 取字段名称 */
-		private String getName(Map<String, String> fields, String alias, String field) {
+		private String getName(Map<String, String> fields, String alias, String field, List<Object> dtoValues) {
 			String name = fields.get(field);
-			return name == null ? field : alias + "." + name;
+			if (name == null) {dtoValues.add(field); return "?";}
+			else {return alias + "." + name;}
 		}
 		
 		@Data

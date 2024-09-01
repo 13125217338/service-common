@@ -66,11 +66,14 @@ public class RedisMakeService implements RedisMake,JSONParser {
 					long recordTime = System.currentTimeMillis(); //记录时间 - 计算等待时间
 					if (first.getValue() > 0) {synchronized (MONITORS) {MONITORS.wait(first.getValue());}}
 					
-					/* 验证监控状态 - 运行中且过期未设置成功 - 退出监控 */
+					/* 验证监控状态 */
 					Monitor monitor = first.getKey();
 					synchronized (monitor) {
-						if (monitor.isRun && !expire(monitor.key, monitor.timeout, TimeUnit.MILLISECONDS)) {
+						if (monitor.isRun && !expire(monitor.key, monitor.timeout, TimeUnit.MILLISECONDS)) { //运行中且过期未设置成功 - 退出监控
 							monitor.isRun = false;
+						}
+						if (monitor.isRun) { //运行中 - 偏向锁更新过期时间
+							expire(monitor.biasLock, monitor.timeout, TimeUnit.MILLISECONDS);
 						}
 					}
 					/* 计算等待时间 - 消除expire远程调用误差时间 */
@@ -348,7 +351,7 @@ public class RedisMakeService implements RedisMake,JSONParser {
 		while((System.currentTimeMillis() - recordTime) < timeout) {
 			Boolean isLock = redisTemplate.opsForValue().setIfAbsent(key, true, timeout, TimeUnit.MILLISECONDS);
 			if (Boolean.TRUE.equals(isLock)) { //拿到分布式锁则设置偏向锁
-				final Monitor monitor = setMonitor(key, timeout); //监控更新过期时间
+				final Monitor monitor = setMonitor(key, biasLock, timeout); //监控更新过期时间
 				try {
 					setValue(biasLock, true, timeout, TimeUnit.MILLISECONDS); //设置偏向锁，用于嵌套锁执行
 					return run.get(); //当前锁直接执行
@@ -366,8 +369,8 @@ public class RedisMakeService implements RedisMake,JSONParser {
 	}
 	
 	/* 设置监控数据 */
-	private Monitor setMonitor(String key, int timeout) {
-		Monitor monitor = new Monitor(true, key, timeout);
+	private Monitor setMonitor(String key, String biasLock, int timeout) {
+		Monitor monitor = new Monitor(true, key, biasLock, timeout);
 		synchronized (MONITORS) {
 			MONITORS.add(new Entry<RedisMakeService.Monitor, Integer>() {
 				private int $timeout = timeout >> 2;
@@ -408,6 +411,8 @@ public class RedisMakeService implements RedisMake,JSONParser {
 		private boolean isRun;
 		/* 加锁键 */
 		private String key;
+		/* 偏向锁 */
+		private String biasLock;
 		/* 过期时间 - 毫秒 */
 		private int timeout;
 	}

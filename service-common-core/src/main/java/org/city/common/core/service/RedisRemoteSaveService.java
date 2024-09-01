@@ -7,16 +7,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.city.common.api.annotation.plug.Remote;
 import org.city.common.api.constant.CommonConstant;
 import org.city.common.api.dto.remote.RemoteClassDto;
+import org.city.common.api.dto.remote.RemoteConfigDto;
 import org.city.common.api.dto.remote.RemoteIpPortDto;
 import org.city.common.api.in.Runnable;
 import org.city.common.api.in.Task;
@@ -52,6 +54,8 @@ public class RedisRemoteSaveService implements RemoteSave,JSONParser,Application
 	private RemoteInvokeApi remoteInvokeApi;
 	@Autowired
 	private RemoteIpPortDto localIpPort;
+	@Autowired
+	private RemoteConfigDto remoteConfigDto;
 	@Autowired
 	private Task task;
 	/* 本地缓存远程信息 */
@@ -124,9 +128,9 @@ public class RedisRemoteSaveService implements RemoteSave,JSONParser,Application
 			setRedisRemote(interfaceCls.getName(), remoteInfos);
 			LOCAL_CACHE.put(interfaceCls, remoteInfos);
 		} else {
-			/* 删除已经禁用的远程调用 */
-			ListIterator<RemoteInfo> rmInfo = remoteInfos.listIterator();
-			while(rmInfo.hasNext()) {if (rmInfo.next().isDisable()) {rmInfo.remove();}}
+			/* 保留未熔断的远程调用 */
+			long curTime = System.currentTimeMillis();
+			remoteInfos = remoteInfos.stream().filter(v -> v.getTurnOnTime() < curTime).collect(Collectors.toList());
 		}
 		return remoteInfos;
 	}
@@ -141,9 +145,9 @@ public class RedisRemoteSaveService implements RemoteSave,JSONParser,Application
 			setRedisRemote("-" + methodName, remoteInfos);
 			LOCAL_CACHE.put(methodName, remoteInfos);
 		} else {
-			/* 删除已经禁用的远程调用 */
-			ListIterator<RemoteInfo> rmInfo = remoteInfos.listIterator();
-			while(rmInfo.hasNext()) {if (rmInfo.next().isDisable()) {rmInfo.remove();}}
+			/* 保留未熔断的远程调用 */
+			long curTime = System.currentTimeMillis();
+			remoteInfos = remoteInfos.stream().filter(v -> v.getTurnOnTime() < curTime).collect(Collectors.toList());
 		}
 		return remoteInfos;
 	}
@@ -157,11 +161,12 @@ public class RedisRemoteSaveService implements RemoteSave,JSONParser,Application
 				/* 所有实现类的接口 */
 				Class<?> interfaceCls;
 				try {interfaceCls = Class.forName(rtc.getInterfaceName());} catch (ClassNotFoundException e) {throw new RuntimeException(e);}
+				Remote remote = interfaceCls.getDeclaredAnnotation(Remote.class);
 				
 				/* 添加本地代理对象 */
 				for (RemoteClassDto remoteClassDto : entry.getValue()) {
 					boolean isLocal = localIpPort.toString().equals(entry.getKey()); //是否是本地服务
-					RemoteInfo remoteInfo = new RemoteInfo(remoteClassDto, isLocal ? localIpPort : new RemoteIpPortDto(entry.getKey()));
+					RemoteInfo remoteInfo = new RemoteInfo(remote.speedLimit(), remoteClassDto, isLocal ? localIpPort : new RemoteIpPortDto(entry.getKey()));
 					
 					/* 如果是本地服务 - 直接设置Bean对象 - 否则设置生成的代理对象 */
 					Object bean = isLocal ? SpringUtil.getBean(remoteClassDto.getBeanName()) : getJdkProxy(interfaceCls, remoteInfo);
@@ -172,7 +177,7 @@ public class RedisRemoteSaveService implements RemoteSave,JSONParser,Application
 	}
 	/* 获取JDK动态代理对象 */
 	private Object getJdkProxy(Class<?> interfaceCls, RemoteInfo remoteInfo) {
-		RemoteHandler remoteHandler = new RemoteHandler(remoteInfo, remoteInvokeApi); //自定义远程处理对象
+		RemoteHandler remoteHandler = new RemoteHandler(remoteInfo, remoteInvokeApi, remoteConfigDto.getFailTimeout()); //自定义远程处理对象
 		return java.lang.reflect.Proxy.newProxyInstance(interfaceCls.getClassLoader(), new Class[] {interfaceCls}, remoteHandler);
 	}
 	/* 公共接口多请求 */

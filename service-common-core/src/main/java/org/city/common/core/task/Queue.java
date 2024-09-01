@@ -58,5 +58,5 @@ final class Queue<T> {
 	/**
 	 * @描述 清除数据（赋NULL）
 	 */
-	synchronized void removeAll() {head = null;size = 0;}
+	synchronized void removeAll() {head = null; size = 0;}
 }

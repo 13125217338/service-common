@@ -8,10 +8,11 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.city.common.api.adapter.RemoteAdapter;
 import org.city.common.api.dto.Response;
-import org.city.common.api.in.interceptor.HandlerInterceptor;
+import org.city.common.api.in.interceptor.ControllerInterceptor;
 import org.city.common.api.in.parse.JSONParser;
 import org.city.common.api.in.sql.Crud;
 import org.city.common.api.util.FormatUtil;
+import org.city.common.api.util.HeaderUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -27,23 +28,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class ControllerAop implements JSONParser {
 	@Autowired(required = false)
-	private List<HandlerInterceptor> interceptors;
+	private List<ControllerInterceptor> interceptors;
 	
 	@Around("@within(org.springframework.web.bind.annotation.RestController) || @within(org.springframework.stereotype.Controller)")
 	public Object authBefore(ProceedingJoinPoint jp) throws Throwable {
-		Crud.clearSql(jp.getArgs()); //清除自定义Sql
-		RemoteAdapter.REMOTE_TRANSACTIONAL.remove(); //清除自定义事务
-		if (preHandlers(jp)) {return Response.error(403, "拒绝请求！");} //执行前处理
-		Object result = jp.proceed(); //执行原方法
-		postHandlers(jp, result); //执行后处理
-		if (result instanceof Response) {FormatUtil.format(((Response) result).getData());} //格式化返回值
-		return result; //返回格式化后的结果
+		try {
+			Crud.clearSql(jp.getArgs()); //清除自定义Sql
+			RemoteAdapter.REMOTE_TRANSACTIONAL.remove(); //清除自定义事务
+			HeaderUtil.setByRequest(); //设置头信息
+			if (preHandlers(jp)) {return Response.error(403, "拒绝请求！");} //执行前处理
+			Object result = jp.proceed(); //执行原方法
+			postHandlers(jp, result); //执行后处理
+			if (result instanceof Response) {FormatUtil.format(((Response) result).getData());} //格式化返回值
+			return result; //返回格式化后的结果
+		} finally {HeaderUtil.remove();} //删除头信息
 	}
 	/* 执行前处理 */
 	private boolean preHandlers(JoinPoint jp) {
 		if (interceptors != null) {
-			for (HandlerInterceptor handlerInterceptor : interceptors) {
-				if (!handlerInterceptor.preHandler(jp)) {return true;}
+			for (ControllerInterceptor interceptor : interceptors) {
+				if (!interceptor.preHandler(jp)) {return true;}
 			}
 		}
 		return false;
@@ -51,8 +55,8 @@ public class ControllerAop implements JSONParser {
 	/* 执行后处理 */
 	private void postHandlers(JoinPoint jp, Object result) {
 		if (interceptors != null) {
-			for (HandlerInterceptor handlerInterceptor : interceptors) {
-				handlerInterceptor.postHandle(jp, result);
+			for (ControllerInterceptor interceptor : interceptors) {
+				interceptor.postHandle(jp, result);
 			}
 		}
 	}

@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.function.Supplier;
 
 import org.city.common.api.constant.CommonConstant;
 import org.city.common.api.dto.DataList;
@@ -63,12 +62,9 @@ public final class RedisTokenMake implements JSONParser {
 					private void handler(List<Entry<Object, Object>> rows, long nowTime) {
 						for (Entry<Object, Object> entry : rows) {
 							final String tkId = entry.getKey().toString(); //令牌ID - 用于加锁验证过期时间
-							redisMake.tryLock(CommonConstant.REDIS_TOKEN_HKEY + SPLIT + ONLY_ID + tkId, remoteConfigDto.getReadTimeout(), true, new Supplier<String>() {
-								@Override
-								public String get() {
-									Long tkTime = parse(entry.getValue(), Long.class);
-									return verifyExpire(tkId, tkTime, nowTime);
-								}
+							redisMake.tryLock(CommonConstant.REDIS_TOKEN_HKEY + SPLIT + ONLY_ID + tkId, remoteConfigDto.getReadTimeout(), true, () -> {
+								Long tkTime = parse(entry.getValue(), Long.class);
+								return verifyExpire(tkId, tkTime, nowTime);
 							});
 						}
 					}
@@ -126,12 +122,9 @@ public final class RedisTokenMake implements JSONParser {
 	private String getTkId(List<Entry<Object, Object>> rows, long nowTime) {
 		for (Entry<Object, Object> entry : rows) {
 			final String tkId = entry.getKey().toString(); //令牌ID - 用于加锁验证过期时间
-			final String curTkId = redisMake.tryLock(CommonConstant.REDIS_TOKEN_HKEY + SPLIT + ONLY_ID + tkId, remoteConfigDto.getReadTimeout(), true, new Supplier<String>() {
-				@Override
-				public String get() {
-					Long tkTime = redisMake.getHValue(CommonConstant.REDIS_TOKEN_EXPIRE_TIME_HKEY + SPLIT_DATA + ONLY_ID, tkId, Long.class);
-					return verifyExpire(tkId, tkTime, nowTime);
-				}
+			final String curTkId = redisMake.tryLock(CommonConstant.REDIS_TOKEN_HKEY + SPLIT + ONLY_ID + tkId, remoteConfigDto.getReadTimeout(), true, () -> {
+				Long tkTime = redisMake.getHValue(CommonConstant.REDIS_TOKEN_EXPIRE_TIME_HKEY + SPLIT_DATA + ONLY_ID, tkId, Long.class);
+				return verifyExpire(tkId, tkTime, nowTime);
 			});
 			/* 有令牌ID直接返回 - 否则继续查询 */
 			if (curTkId != null) {return curTkId;}

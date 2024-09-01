@@ -34,18 +34,18 @@ import org.springframework.stereotype.Component;
  */
 @Aspect
 @Component
-@Order(Short.MAX_VALUE)
+@Order(Short.MIN_VALUE)
 public class MakesAop implements Replace,JSONParser {
 	@Autowired
 	private Environment environment;
 	
 	@Around("@annotation(org.city.common.api.annotation.make.Makes)")
 	public Object makesAround(ProceedingJoinPoint jp) throws Throwable {
-		Method method = ((MethodSignature) jp.getSignature()).getMethod();		
+		Method method = ((MethodSignature) jp.getSignature()).getMethod();
 		/* 执行操作 */
 		return makeInvoke(jp, method.getDeclaredAnnotation(Makes.class), method);
 	}
-
+	
 	/* 操作执行 */
 	private Object makeInvoke(ProceedingJoinPoint jp, Makes makes, Method method) throws Throwable {
 		/* 获取参数真实名称 */
@@ -53,14 +53,14 @@ public class MakesAop implements Replace,JSONParser {
 		String[] names = discoverer.getParameterNames(method);
 		
 		/* 所有可以执行的操作 */
-		Map<org.city.common.api.in.MakeInvoke, MakeInvokeDto> invokes = new LinkedHashMap<>();
+		Map<MakeInvokeDto, org.city.common.api.in.MakeInvoke> invokes = new LinkedHashMap<>();
 		for (MakeInvoke makeInvoke : makes.value()) {
 			if (makeInvoke.invoke() != org.city.common.api.in.MakeInvoke.class) {
 				/* 替换自定义参数 */
 				String[] values = makeInvoke.values();
 				replaceVals(environment, values, jp.getTarget(), jp.getArgs(), names);
 				/* 添加解析操作 */
-				invokes.put(SpringUtil.getBean(makeInvoke.invoke()), new MakeInvokeDto(makeInvoke, values));
+				invokes.put(new MakeInvokeDto(makeInvoke, values), SpringUtil.getBean(makeInvoke.invoke()));
 			}
 		}
 		/* 如果没有操作 */
@@ -72,7 +72,7 @@ public class MakesAop implements Replace,JSONParser {
 			/* 自定义参数 */
 			private final Map<String, Object> PARAM = new HashMap<>();
 			/* 执行链路 */
-			private final LinkedHashMap<org.city.common.api.in.MakeInvoke, MakeInvokeDto> Makes = new LinkedHashMap<>();
+			private final LinkedHashMap<MakeInvokeDto, org.city.common.api.in.MakeInvoke> MAKES = new LinkedHashMap<>();
 			/* 是否错误执行 */
 			private boolean isError = false;
 			/* 是否执行过原方法 */
@@ -118,9 +118,9 @@ public class MakesAop implements Replace,JSONParser {
 			@Override
 			public Method getMethod() {return method;}
 			@Override
-			public LinkedHashMap<org.city.common.api.in.MakeInvoke, MakeInvokeDto> getMakes() {return this.Makes;}
+			public LinkedHashMap<MakeInvokeDto, org.city.common.api.in.MakeInvoke> getMakes() {return MAKES;}
 			@Override
-			public Map<org.city.common.api.in.MakeInvoke, MakeInvokeDto> getAllMakes() {return invokes;}
+			public Map<MakeInvokeDto, org.city.common.api.in.MakeInvoke> getAllMakes() {return invokes;}
 			@Override
 			public Object[] getArgs() {return jp.getArgs();}
 			@Override
@@ -131,21 +131,29 @@ public class MakesAop implements Replace,JSONParser {
 			/* 初始执行 */
 			private void init() throws Throwable {
 				try {
-					for (Entry<org.city.common.api.in.MakeInvoke, MakeInvokeDto> entry : invokes.entrySet()) {
+					for (Entry<MakeInvokeDto, org.city.common.api.in.MakeInvoke> entry : invokes.entrySet()) {
 						if (this.isEnd) {break;} //结束链路执行
-						MakeInvokeDto invokeDto = entry.getValue(); //执行参数
+						MakeInvokeDto invokeDto = entry.getKey(); //执行参数
 						/* 开始执行方法 */
-						entry.getKey().invoke(this, invokeDto.getMakeInvoke().value(), invokeDto.getValues());
-						this.Makes.put(entry.getKey(), entry.getValue());
+						entry.getValue().invoke(this, invokeDto.getMakeInvoke().value(), invokeDto.getValues());
+						this.MAKES.put(entry.getKey(), entry.getValue());
 					}
 				} catch (Throwable e) {
 					this.isError = true;
-					for (Entry<org.city.common.api.in.MakeInvoke, MakeInvokeDto> entry : invokes.entrySet()) {
-						MakeInvokeDto invokeDto = entry.getValue(); //执行参数
+					for (Entry<MakeInvokeDto, org.city.common.api.in.MakeInvoke> entry : invokes.entrySet()) {
+						MakeInvokeDto invokeDto = entry.getKey(); //执行参数
 						/* 开始执行异常 */
-						entry.getKey().throwable(this, e, invokeDto.getMakeInvoke().value(), invokeDto.getValues());
+						try {entry.getValue().throwable(this, e, invokeDto.getMakeInvoke().value(), invokeDto.getValues());} catch (Throwable e2) {}
 					}
 					throw e; //抛出当前异常错误
+				} finally {
+					Throwable e = null;
+					for (Entry<MakeInvokeDto, org.city.common.api.in.MakeInvoke> entry : invokes.entrySet()) {
+						MakeInvokeDto invokeDto = entry.getKey(); //执行参数
+						/* 最后执行方法 */
+						try {entry.getValue().finallys(this, invokeDto.getMakeInvoke().value(), invokeDto.getValues());} catch (Throwable e2) {e = e2;}
+					}
+					if (e != null) {throw e;} //抛出最后执行的异常
 				}
 			}
 		};
