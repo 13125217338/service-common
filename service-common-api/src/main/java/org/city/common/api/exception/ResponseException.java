@@ -1,10 +1,8 @@
 package org.city.common.api.exception;
 
-import org.city.common.api.dto.GlobalExceptionDto;
 import org.city.common.api.dto.Response;
+import org.city.common.api.dto.remote.RemoteIpPortDto;
 import org.city.common.api.in.parse.JSONParser;
-
-import com.alibaba.fastjson.JSONObject;
 
 import lombok.Getter;
 
@@ -17,18 +15,9 @@ import lombok.Getter;
 @Getter
 public class ResponseException extends RuntimeException implements JSONParser {
 	private static final long serialVersionUID = 1L;
-	private Response Response;
-	private GlobalExceptionDto remote;
-	public ResponseException(String msg) {super(msg);}
-	
-	public static ResponseException of(Response Response) {
-		ResponseException responseException = new ResponseException(Response.getMsg());
-		responseException.Response = Response;
-		/* 获取其中的来源服务名称 */
-		if (Response.getData() instanceof JSONObject) {
-			JSONObject data = (JSONObject) Response.getData();
-			if (data.containsKey("appName")) {responseException.remote = responseException.parse(data, GlobalExceptionDto.class);}
-		}
-		return responseException; 
+	private final Response response;
+	private final RemoteIpPortDto remoteIpPort;
+	public ResponseException(Response response, RemoteIpPortDto remoteIpPort) {
+		this.response = response; this.remoteIpPort = remoteIpPort;
 	}
 }

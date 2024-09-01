@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.city.common.api.in.Runnable;
+
 /**
  * @作者 ChengShi
  * @日期 2020-04-18 11:47:05
@@ -20,7 +22,7 @@ class DataCenter {
 	final List<Run> RUNS = new LinkedList<>();
 	
 	/** 所有定时任务线程 */
-	final Map<String, Schedula> SCALUDES = new ConcurrentHashMap<>();
+	final Map<String, Schedula> SCHEDULA = new ConcurrentHashMap<>();
 	/** 所有同步数据 */
 	final Map<String, SysParam> SYS_DATA = new ConcurrentHashMap<>();
 	
@@ -34,7 +36,7 @@ class DataCenter {
 	
 	/** 核心线程数 */
 	int CORE = 1;
-			
+	
 	/** 最大任务数量 */
 	int TASKMAX = Short.MAX_VALUE;
 }

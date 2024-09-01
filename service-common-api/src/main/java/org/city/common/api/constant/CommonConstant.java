@@ -5,6 +5,8 @@ import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import javax.websocket.DeploymentException;
+
 /**
  * @作者 ChengShi
  * @日期 2022-06-24 13:02:30
@@ -12,6 +14,8 @@ import java.util.Date;
  * @描述 公共常量
  */
 public interface CommonConstant {
+	/** 请求验证头 */
+	public final static String AUTHORIZATION = "Authorization";
 	/** 定时验证过期操作唯一ID */
 	public final static String REDIS_TOKEN_TIME_EXPIRE_ID = "REDIS_TOKEN_TIME_EXPIRE_ID";
 	/** Redis监控分布锁唯一ID */
@@ -27,9 +31,6 @@ public interface CommonConstant {
 	public final static String REDIS_TOKEN_HKEY = "RedisToken";
 	/** 记录Redis令牌过期时间信息 */
 	public final static String REDIS_TOKEN_EXPIRE_TIME_HKEY = "RedisTokenExpireTime";
-	
-	/** 远程分布式事务头记录ID */
-	public final static String REMOTE_TRANSACTIONAL_HEADER_NAME = "Remote-Transactional-Id";
 	
 	/** 启动时间 */
 	public final static long START_TIME = System.currentTimeMillis();
@@ -80,6 +81,7 @@ public interface CommonConstant {
 	 * @return true=是
 	 */
 	public static boolean isConnectTimeout(Throwable throwable) {
+		if (throwable instanceof DeploymentException) {return true;}
 		if (throwable instanceof ConnectException) {return true;}
 		if (throwable instanceof SocketTimeoutException && throwable.getMessage().contains("connect timed out")) {return true;}
 		return false;

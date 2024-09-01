@@ -19,7 +19,7 @@ public class RemoteConfigDto {
 	/* 是否执行远程 */
 	private boolean invoke = true;
 	/* 验证盐 */
-	private String verify = "RemoteInvokeService-Verify";
+	private String verify = "3fea7df4a746702baf96495999398c598f61b74827db7d579ea97f36c1b1e5b2";
 	/* 连接时间（毫秒） */
 	private int connectTimeout = 1000 * 60;
 	/* 读取时间（毫秒） */
