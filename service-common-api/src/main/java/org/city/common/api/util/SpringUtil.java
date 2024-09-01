@@ -13,23 +13,34 @@ import org.springframework.core.env.Environment;
  * @版本 1.0
  * @描述 Spring工具
  */
-public final class SpringUtil implements FirstCharParse {
+public final class SpringUtil {
+	private final static FirstCharParse FIRST_CHAR_PARSE = new FirstCharParse() {};
+	private static Class<?> mainApplicationClass;
 	private static ApplicationContext applicationContext;
 	private static String appName;
-	private final static SpringUtil SPRING_UTIL = new SpringUtil();
 	private SpringUtil() {}
 	
 	/**
 	 * @描述 初始化工具（只能执行一次）
+	 * @param mainApplicationClass 启动入口类
 	 * @param applicationContext 应用上下文
 	 */
-	public synchronized static void init(ApplicationContext applicationContext) {
-		if (SpringUtil.applicationContext == null) {
+	public synchronized static void init(Class<?> mainApplicationClass, ApplicationContext applicationContext) {
+		if (SpringUtil.mainApplicationClass == null) {
+			SpringUtil.mainApplicationClass = mainApplicationClass;
 			SpringUtil.applicationContext = applicationContext;
 			SpringUtil.appName = getEnvironment().getProperty("spring.application.name");
 		}
 	}
 	
+	/**
+     * @描述 获取启动入口类
+     * @return 启动入口类
+     */
+    public static Class<?> getMainApplicationClass() {
+        return mainApplicationClass;
+    }
+    
 	/**
 	 * @描述 获取应用名称
 	 * @return 应用名称
@@ -81,7 +92,7 @@ public final class SpringUtil implements FirstCharParse {
      * @return 对应Bean
      */
     public static <T> T getBean(Class<T> cls){
-    	String lowerName = SPRING_UTIL.parseLower(cls);
+    	String lowerName = FIRST_CHAR_PARSE.parseLower(cls);
     	return applicationContext.containsBean(lowerName) ? getBean(lowerName, cls) : applicationContext.getBean(cls);
     }
     

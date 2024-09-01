@@ -22,9 +22,13 @@ public @interface Remote {
 	/**
 	 * @描述 Spring注册的beanName，默认接口精简名首字母小写
 	 */
-	public String value() default "";
+	public String beanName() default "";
 	/**
 	 * @描述 远程调用适配实现类（实现类需交给Spring管理）
 	 */
 	public Class<? extends RemoteAdapter> adapter() default LoopAdapter.class;
+	/**
+	 * @描述 远程方法调用限流（秒单位）
+	 */
+	public int speedLimit() default -1;
 }

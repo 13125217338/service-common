@@ -55,7 +55,7 @@ public interface AnnotationParse {
 	public static class Proxy implements InvocationHandler,JSONParser {
 		private final Map<String, Object> annotationData;
 		public Proxy(Map<String, Object> annotationData) {this.annotationData = annotationData;}
-
+		
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 			return parse(annotationData.get(method.getName()), method.getGenericReturnType());

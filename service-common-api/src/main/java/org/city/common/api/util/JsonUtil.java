@@ -1,16 +1,24 @@
 package org.city.common.api.util;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.Reader;
+import java.io.Writer;
 import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.Map.Entry;
 
 import org.city.common.api.in.parse.JSONParser;
+import org.springframework.core.io.InputStreamSource;
+import org.springframework.core.io.Resource;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.JSONPath;
 import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson.serializer.ValueFilter;
 
 /**
  * @作者 ChengShi
@@ -19,8 +27,12 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
  * @描述 Json工具
  */
 public final class JsonUtil {
-	private final static JSONParser PARSER = new JSONParser() {};
 	private JsonUtil() {}
+	private final static JSONParser PARSER = new JSONParser() {};
+	private final static ValueFilter VALUE_FILTER = new ValueFilter() {
+		@Override
+		public Object process(Object object, String name, Object value) {return parse(value);}
+	};
 	
 	/**
 	 * @描述 通过JSONPath替换value中特殊字符的数据，取数为data，条件为#{key}
@@ -84,6 +96,59 @@ public final class JsonUtil {
 			}
 		}
 	}
+	
+	/**
+	 * @描述 序列化成JSON字符串（一般用作日志打印）
+	 * @param value 待序列化对象
+	 * @return JSON字符串
+	 */
+	public static String toJSONString(Object value) {
+		return JSON.toJSONString(parse(value), VALUE_FILTER);
+	}
+	
+	/* 不同类型不同处理 */
+	@SuppressWarnings("unchecked")
+	private static Object parse(Object value) {
+		if (value == null) {return null;}
+		if (value instanceof Collection) {return parseCollection((Collection<Object>) value);}
+		if (value.getClass().isArray()) {return parseArray(value);}
+		return parseObject(value);
+	}
+	/* 集合处理 */
+	@SuppressWarnings("unchecked")
+	private static Object parseCollection(Collection<Object> vals) {
+		try {
+			Collection<Object> datas = vals.getClass().getConstructor().newInstance();
+			for (Object val : vals) {datas.add(parseObject(val));}
+			return datas;
+		} catch (Exception e) {return null;}
+	}
+	/* 数组处理 */
+	private static Object parseArray(Object vals) {
+		int length = Array.getLength(vals);
+		Object datas = Array.newInstance(Object.class, length);
+		for (int i = 0; i < length; i++) {
+			Array.set(datas, i, parseObject(Array.get(vals, i)));
+		}
+		return datas;
+	}
+	/* 对象处理 */
+	private static Object parseObject(Object val) {
+		if (val == null) {return null;}
+		if (val instanceof InputStreamSource) {
+			if (val instanceof Resource) {return ((Resource) val).getDescription();}
+			if (val instanceof MultipartFile) {return ((MultipartFile) val).getOriginalFilename();}
+			return val.getClass().getName();
+		}
+		if (val instanceof InputStream || val instanceof OutputStream || val instanceof Reader || val instanceof Writer) {
+			return val.getClass().getName();
+		}
+		if (val instanceof Throwable) {
+			return val.toString();
+		}
+		return val;
+	}
+	
 	/* 创建并设置路径 */
 	private static JSON set(JSON data, boolean isArray, String fieldName) {
 		if (data instanceof JSONObject) {

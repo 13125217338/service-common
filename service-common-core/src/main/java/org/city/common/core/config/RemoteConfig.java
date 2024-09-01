@@ -17,6 +17,7 @@ import javax.annotation.PostConstruct;
 
 import org.city.common.api.annotation.plug.Remote;
 import org.city.common.api.annotation.plug.RemoteMethod;
+import org.city.common.api.annotation.plug.RemoteUrl;
 import org.city.common.api.dto.remote.RemoteClassDto;
 import org.city.common.api.dto.remote.RemoteMethodDto;
 import org.city.common.api.dto.remote.RemoteParameterDto;
@@ -29,7 +30,7 @@ import org.city.common.api.util.MyUtil;
 import org.city.common.api.util.PlugUtil;
 import org.city.common.api.util.SpringUtil;
 import org.city.common.core.handler.RemoteProxyHandler;
-import org.city.common.core.handler.RemoteProxyHandler.RemoteProxyInfo;
+import org.city.common.core.handler.RemoteUrlHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -52,13 +53,12 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 	private ServletWebServerApplicationContext context;
 	@PostConstruct
 	protected void init() {
-		Object mainBean = context.getBeansWithAnnotation(SpringBootApplication.class).entrySet().iterator().next().getValue();
-		String[] scanBasePackages = ClassUtils.getUserClass(mainBean).getDeclaredAnnotation(SpringBootApplication.class).scanBasePackages();
+		String[] scanBasePackages = SpringUtil.getMainApplicationClass().getDeclaredAnnotation(SpringBootApplication.class).scanBasePackages();
 		Assert.notEmpty(scanBasePackages, "未找到启动入口类@SpringBootApplication注解对应scanBasePackages值，请检查注解参数对应值！");
 		PlugUtil.REMOTE_SAVE.init(); //提前初始化远程调用保存
 		
 		/* 提前扫描远程注解 - 并记录所有扫描到的类信息 */
-		List<Class<?>> allClass = new ArrayList<>(); Map<Class<?>, Remote> remotes = new HashMap<>();
+		List<Class<?>> allClass = new ArrayList<>(); Map<Class<?>, Remote> remotes = new HashMap<>(); Map<Class<?>, RemoteUrl> remoteUrls = new HashMap<>();
 		new ClassPathBeanDefinitionScanner(context.getDefaultListableBeanFactory()) {
 			@Override
 			protected boolean isCandidateComponent(MetadataReader metadataReader) throws IOException {
@@ -69,13 +69,16 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 					if (scanClass.isInterface()) { //只扫描接口且注解有远程标志
 						Remote remote = scanClass.getDeclaredAnnotation(Remote.class);
 						if (remote != null) {remotes.put(scanClass, remote);}
+						
+						RemoteUrl remoteUrl = scanClass.getDeclaredAnnotation(RemoteUrl.class);
+						if (remoteUrl != null) {remoteUrls.put(scanClass, remoteUrl);}
 					}
 				} catch (ClassNotFoundException e) {/* 不处理类找不到异常 */}
 				return false;
 			}
 		}.scan(scanBasePackages);
 		
-		initConfig(remotes); //初始化远程配置
+		initConfig(remotes, remoteUrls); //初始化远程配置
 		super.init(); //初始化日志信息
 		for (Scanner scanner : context.getBeansOfType(Scanner.class).values()) {
 			for (Class<?> scanClass : allClass) {scanner.scan(scanClass);} //最后自定义扫描
@@ -83,7 +86,7 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 	}
 	
 	/* 初始化配置 */
-	private void initConfig(Map<Class<?>, Remote> remotes) {
+	private void initConfig(Map<Class<?>, Remote> remotes, Map<Class<?>, RemoteUrl> remoteUrls) {
 		/* 必定是接口 */
 		for (Entry<Class<?>, Remote> entry : remotes.entrySet()) {
 			Set<Method> methodInfos = new HashSet<>();
@@ -99,8 +102,15 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 			
 			/* 注册单例Bean */
 			Object bean = Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] {entry.getKey()},
-					new RemoteProxyHandler(new RemoteProxyInfo(entry.getKey(), entry.getValue().adapter())));
-			register(bean, entry.getKey(), entry.getValue().value());
+					new RemoteProxyHandler(entry.getKey(), entry.getValue().adapter()));
+			register(bean, entry.getKey(), entry.getValue().beanName());
+		}
+		/* 必定是接口 */
+		for (Entry<Class<?>, RemoteUrl> entry : remoteUrls.entrySet()) {
+			/* 注册单例Bean */
+			Object bean = Proxy.newProxyInstance(this.getClass().getClassLoader(), new Class[] {entry.getKey()},
+					new RemoteUrlHandler(entry.getKey(), entry.getValue()));
+			register(bean, entry.getKey(), entry.getValue().beanName());
 		}
 	}
 	
@@ -173,11 +183,11 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 	/* 获取远程方法注解参数 */
 	private Map<String, Object> getMetodAnnotation(Class<?> curObjClass, RemoteMethod remoteMethod) {
 		Map<String, Object> methodAnnotation = MyUtil.getAnnotationVal(remoteMethod);
-		String value = replaceConfig(SpringUtil.getEnvironment(), remoteMethod.value());
+		String value = replaceConfig(curObjClass, SpringUtil.getEnvironment(), remoteMethod.value());
 		methodAnnotation.put("value", value);
 		return methodAnnotation;
 	}
-
+	
 	/* 注册单例Bean */
 	private void register(Object bean, Class<?> beanCls, String beanName) {
 		ConfigurableApplicationContext configurableApplicationContext = (ConfigurableApplicationContext) SpringUtil.getApplicationContext();

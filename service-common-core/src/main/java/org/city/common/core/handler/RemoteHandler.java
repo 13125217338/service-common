@@ -7,10 +7,12 @@ import java.net.ConnectException;
 import org.city.common.api.adapter.RemoteAdapter;
 import org.city.common.api.constant.CommonConstant;
 import org.city.common.api.dto.remote.RemoteMethodDto;
+import org.city.common.api.exception.RemoteSpeedLimitException;
 import org.city.common.api.in.parse.JSONParser;
 import org.city.common.api.in.parse.MethodNameParse;
 import org.city.common.api.in.remote.RemoteInvokeApi;
 import org.city.common.api.in.remote.RemoteSave.RemoteInfo;
+import org.city.common.api.util.SpeedLimitUtil;
 import org.springframework.web.client.ResourceAccessException;
 
 /**
@@ -22,13 +24,16 @@ import org.springframework.web.client.ResourceAccessException;
 public class RemoteHandler implements InvocationHandler,MethodNameParse,JSONParser {
 	private final RemoteInfo remoteInfo;
 	private final RemoteInvokeApi remoteInvokeApi;
-	public RemoteHandler(RemoteInfo remoteInfo, RemoteInvokeApi remoteInvokeApi) {
-		this.remoteInfo = remoteInfo; this.remoteInvokeApi = remoteInvokeApi;
+	private final int failTimeout;
+	public RemoteHandler(RemoteInfo remoteInfo, RemoteInvokeApi remoteInvokeApi, int failTimeout) {
+		this.remoteInfo = remoteInfo; this.remoteInvokeApi = remoteInvokeApi; this.failTimeout = failTimeout;
 	}
 	
 	@Override
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-		if (remoteInfo.isDisable()) {throw new ConnectException("远程服务不可用！");}
+		args = args == null ? new Object[0] : args;
+		if (remoteInfo.getTurnOnTime() > System.currentTimeMillis()) {throw new ConnectException("远程服务不可用！");}
+		SpeedLimitUtil.limitSec(remoteInfo.getSpeedLimit(), 1, method, () -> new RemoteSpeedLimitException("远程服务限流！"));
 		/* 获取当前远程方法 */
 		RemoteMethodDto remoteMethodDto = remoteInfo.getRemoteClassDto().getMethods().get(parse(method));
 		if (remoteMethodDto == null) {return parse(null, method.getGenericReturnType());}
@@ -40,7 +45,7 @@ public class RemoteHandler implements InvocationHandler,MethodNameParse,JSONPars
 		long recordTime = System.currentTimeMillis(); //记录当前时间
 		try {return remoteInvokeApi.invoke(beanName, remoteMethodDto, remoteInfo.getRemoteIpPortDto(), args);}
 		/* 连接异常不可用标记 */
-		catch (ResourceAccessException e) {if (CommonConstant.isConnectTimeout(e.getCause())) {remoteInfo.setDisable(true);} throw e;}
+		catch (ResourceAccessException e) {if (CommonConstant.isConnectTimeout(e.getCause())) {remoteInfo.setTurnOnTime(System.currentTimeMillis() + failTimeout);} throw e;}
 		/* 回调执行时间与远程信息 */
 		finally {if (remoteAdapter != null) {remoteAdapter.invokedInfo((int) (System.currentTimeMillis() - recordTime), remoteInfo);}}
 	}

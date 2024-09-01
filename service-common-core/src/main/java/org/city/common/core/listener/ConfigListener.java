@@ -16,13 +16,14 @@ import org.springframework.context.ConfigurableApplicationContext;
  * @描述 自定义配置监听
  */
 public class ConfigListener implements SpringApplicationRunListener,FirstCharParse {
-	public ConfigListener(SpringApplication application, String[] args) {}
+	private static Class<?> mainApplicationClass; //启动入口类
+	public ConfigListener(SpringApplication application, String[] args) {ConfigListener.mainApplicationClass = application.getMainApplicationClass();}
 	
 	@Override
 	public void contextLoaded(ConfigurableApplicationContext context) {
 		if (context instanceof ServletWebServerApplicationContext) {
 			ServletWebServerApplicationContext webContext = (ServletWebServerApplicationContext) context;
-			SpringUtil.init(webContext); //初始化工具
+			SpringUtil.init(ConfigListener.mainApplicationClass, webContext); //初始化工具
 			webContext.registerBeanDefinition(parseLower(RemoteConfig.class),new RootBeanDefinition(RemoteConfig.class)); //注册远程配置
 		}
 	}

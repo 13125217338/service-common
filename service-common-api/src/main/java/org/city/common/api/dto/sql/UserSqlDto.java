@@ -1,5 +1,9 @@
 package org.city.common.api.dto.sql;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -16,10 +20,52 @@ public class UserSqlDto {
 	private String fields;
 	/* 自定义sql追加连接表 - 如：left join system sys on c.id = sys.id - 只有查询有用 */
 	private String join;
+	/* 自定义sql追加连接表参数 - 如：left join system sys on c.id = ? - 只有查询有用 */
+	private final List<Object> joinParam = new ArrayList<>();
 	/* 自定义sql条件 - 如：and sys.name = '插件' - 查询、删除、更新有用 */
 	private String where;
+	/* 自定义sql条件参数 - 如：and sys.name = ? - 查询、删除、更新有用 */
+	private final List<Object> whereParam = new ArrayList<>();
 	/* 自定义sql表名 - 如：system - 全部有用 */
 	private String table;
 	/* 自定义sql分组条件 - 如：total > 10 - 分组后有用 */
 	private String having;
+	/* 自定义sql分组条件参数 - 如：total > ? - 分组后有用 */
+	private final List<Object> havingParam = new ArrayList<>();
+	
+	/**
+	 * @描述 设置自定义sql追加连接表和参数
+	 * @param join 自定义sql追加连接表
+	 * @param params 参数
+	 * @return 用户自定义Sql参数
+	 */
+	public UserSqlDto setJoin(String join, Object...params) {
+		this.join = join;
+		this.joinParam.addAll(Arrays.asList(params));
+		return this;
+	}
+	
+	/**
+	 * @描述 设置自定义sql条件和参数
+	 * @param where 自定义sql条件
+	 * @param params 参数
+	 * @return 用户自定义Sql参数
+	 */
+	public UserSqlDto setWhere(String where, Object...params) {
+		this.where = where;
+		this.whereParam.addAll(Arrays.asList(params));
+		return this;
+	}
+	
+	/**
+	 * @描述 设置自定义sql分组条件和参数
+	 * @param having 自定义sql分组条件
+	 * @param params 参数
+	 * @return 用户自定义Sql参数
+	 */
+	public UserSqlDto setHaving(String having, Object...params) {
+		this.having = having;
+		this.havingParam.addAll(Arrays.asList(params));
+		return this;
+	}
 }
