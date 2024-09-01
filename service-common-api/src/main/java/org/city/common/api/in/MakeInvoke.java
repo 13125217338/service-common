@@ -24,13 +24,20 @@ public interface MakeInvoke {
 	 */
 	public void invoke(Process process, int value, String[] values) throws Throwable;
 	/**
-	 * @描述 执行后的异常处理（该方法所有操作实现者都会被调用）
+	 * @描述 执行后的异常处理（该方法所有操作实现者一定会被调用）
 	 * @param process 执行器
-	 * @param throwClass 异常类
+	 * @param throwable 异常信息
 	 * @param value 自定义参数（通常用作标记）
 	 * @param values 已被替换的自定义参数
 	 */
-	public void throwable(Process process, Throwable throwClass, int value, String[] values);
+	default void throwable(Process process, Throwable throwable, int value, String[] values) throws Throwable {}
+	/**
+	 * @描述 最后操作执行（该方法所有操作实现者一定会被调用）
+	 * @param process 执行器
+	 * @param value 自定义参数（通常用作标记）
+	 * @param values 已被替换的自定义参数
+	 */
+	default void finallys(Process process, int value, String[] values) throws Throwable {}
 	
 	/**
 	 * @描述 判断执行原方法并设置返回值

@@ -173,11 +173,11 @@ public class RemoteConfig extends AppenderConfig implements GlobalConfig,Replace
 	/* 获取远程方法注解参数 */
 	private Map<String, Object> getMetodAnnotation(Class<?> curObjClass, RemoteMethod remoteMethod) {
 		Map<String, Object> methodAnnotation = MyUtil.getAnnotationVal(remoteMethod);
-		String value = replaceConfig(SpringUtil.getEnvironment(), remoteMethod.value());
+		String value = replaceConfig(curObjClass, SpringUtil.getEnvironment(), remoteMethod.value());
 		methodAnnotation.put("value", value);
 		return methodAnnotation;
 	}
-
+	
 	/* 注册单例Bean */
 	private void register(Object bean, Class<?> beanCls, String beanName) {
 		ConfigurableApplicationContext configurableApplicationContext = (ConfigurableApplicationContext) SpringUtil.getApplicationContext();

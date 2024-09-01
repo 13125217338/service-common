@@ -1,7 +1,6 @@
 package org.city.common.core.controller;
 
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.function.Function;
 
 import javax.annotation.PostConstruct;
@@ -10,6 +9,7 @@ import org.city.common.api.dto.Response;
 import org.city.common.api.in.function.FunctionRequest;
 import org.city.common.api.in.function.FunctionRequestVoid;
 import org.city.common.api.in.function.FunctionRequestVoidExt;
+import org.city.common.api.in.parse.TypeParse;
 import org.city.common.api.util.SpringUtil;
 
 /**
@@ -18,7 +18,7 @@ import org.city.common.api.util.SpringUtil;
  * @版本 1.0
  * @描述 公共控制方法
  */
-public abstract class AbstractController<S> {
+public abstract class AbstractController<S> implements TypeParse {
 	/* 当前服务对象 */
 	protected S service;
 	@PostConstruct
@@ -26,9 +26,8 @@ public abstract class AbstractController<S> {
 	/* 获取当前类 */
 	@SuppressWarnings("unchecked")
 	private Class<S> getCurClass() {
-		Type type = ((ParameterizedType) this.getClass().getGenericSuperclass()).getActualTypeArguments()[0];
-		if (type instanceof Class) {return (Class<S>) type;}
-		else {return (Class<S>) ((ParameterizedType) type).getRawType();}
+		Map<String, Class<?>> genericSuperClass = getGenericSuperClass(this.getClass());
+		return (Class<S>) genericSuperClass.get("S");
 	}
 	
 	/**
